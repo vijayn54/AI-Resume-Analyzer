@@ -6,13 +6,13 @@ st.set_page_config(page_title="AI Resume Analyzer")
 
 st.title("AI Resume Analyzer")
 
-# Job Description
+# Job Description Input
 job_description = st.text_area(
     "Paste the Job Description Here",
     height=200
 )
 
-# Upload Resume
+# Resume Upload
 uploaded_file = st.file_uploader(
     "Upload your Resume (PDF)",
     type=["pdf"]
@@ -28,10 +28,11 @@ if uploaded_file is not None:
 
     for page in pdf_reader.pages:
         page_text = page.extract_text()
+
         if page_text:
             text += page_text
 
-    # Resume Text
+    # Show Resume Text
     st.subheader("Extracted Resume Text")
 
     st.text_area(
@@ -41,7 +42,7 @@ if uploaded_file is not None:
         key="resume_content"
     )
 
-    # Skills
+    # Skills List
     skills = [
         "Python",
         "Java",
@@ -90,7 +91,7 @@ if uploaded_file is not None:
 
     st.pyplot(fig)
 
-    # Suggestions
+    # Resume Suggestions
     st.subheader("Resume Suggestions")
 
     missing_skills = []
@@ -106,6 +107,24 @@ if uploaded_file is not None:
             st.write(f"❌ {skill}")
     else:
         st.success("Great! Your resume contains all tracked skills.")
+
+    # Download Report
+    report = f"""
+ATS Score: {ats_score:.2f}/100
+
+Detected Skills:
+{', '.join(found_skills)}
+
+Missing Skills:
+{', '.join(missing_skills)}
+"""
+
+    st.download_button(
+        label="Download Resume Report",
+        data=report,
+        file_name="resume_report.txt",
+        mime="text/plain"
+    )
 
     # Job Match Score
     if job_description.strip():
