@@ -1,4 +1,4 @@
-AI-Resume-Analyzer
-├── app.py
-├── requirements.txt
-├── venv
+streamlit
+PyPDF2
+matplotlib
+groq
