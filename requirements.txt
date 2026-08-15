@@ -1,0 +1,4 @@
+AI-Resume-Analyzer
+├── app.py
+├── requirements.txt
+├── venv
