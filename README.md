@@ -4,7 +4,7 @@ An AI-powered resume analysis and placement assistant built for college students
 
 ## 🚀 Live Demo
 
-[Open AI Resume Analyzer](YOUR_STREAMLIT_APP_LINK)
+[Open AI Resume Analyzer](https://ai-resume-analyzer-9updtdcbpgzayo6xpkufqk.streamlit.app/)
 
 ## 📌 Project Status
 
