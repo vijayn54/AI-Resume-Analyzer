@@ -710,7 +710,110 @@ Keep the language clear and student-friendly.
                         f"AI interview generation failed: {e}"
                     )
 
+    # =================================================
+    # MOCK INTERVIEW
+    # =================================================
 
+    st.markdown("---")
+
+    st.subheader("🎤 Mock Interview")
+
+    st.write(
+        "Practice answering an interview question and get an AI evaluation."
+    )
+
+    mock_question = st.text_area(
+        "💬 Enter an interview question",
+        placeholder="Example: Explain your AI Resume Analyzer project."
+    )
+
+    student_answer = st.text_area(
+        "✍️ Your Answer",
+        height=200,
+        placeholder="Type your answer here..."
+    )
+
+    if st.button(
+        "🧠 Evaluate My Answer",
+        key="evaluate_mock_answer"
+    ):
+
+        if not mock_question.strip():
+
+            st.warning(
+                "Please enter an interview question."
+            )
+
+        elif not student_answer.strip():
+
+            st.warning(
+                "Please enter your answer."
+            )
+
+        elif client is None:
+
+            st.error(
+                "Groq API key is not configured."
+            )
+
+        else:
+
+            with st.spinner(
+                "AI is evaluating your answer..."
+            ):
+
+                evaluation_prompt = f"""
+You are an expert interviewer evaluating a college student
+preparing for internships and placements.
+
+Interview Question:
+{mock_question}
+
+Student Answer:
+{student_answer}
+
+Evaluate the answer and provide:
+
+1. Score out of 10
+2. What the student did well
+3. What could be improved
+4. Important points that were missed
+5. A better sample answer
+6. One practical tip for the next interview
+
+Be encouraging, honest, and student-friendly.
+"""
+
+                try:
+
+                    response = client.chat.completions.create(
+                        model="openai/gpt-oss-20b",
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": evaluation_prompt
+                            }
+                        ]
+                    )
+
+                    evaluation = (
+                        response
+                        .choices[0]
+                        .message
+                        .content
+                    )
+
+                    st.subheader(
+                        "📊 AI Interview Evaluation"
+                    )
+
+                    st.write(evaluation)
+
+                except Exception as e:
+
+                    st.error(
+                        f"AI evaluation failed: {e}"
+                    )
 # =========================================================
 # FOOTER
 # =========================================================
