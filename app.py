@@ -193,13 +193,12 @@ st.sidebar.markdown(
     """
 )
 
-st.sidebar.markdown("---")
-
 page = st.sidebar.radio(
     "Choose Module",
     [
         "📄 Resume Analyzer",
-        "🎤 Interview Preparation"
+        "🎤 Interview Preparation",
+        "🎯 Placement Readiness"
     ]
 )
 
@@ -815,6 +814,251 @@ Be encouraging, honest, and student-friendly.
                         f"AI evaluation failed: {e}"
                     )
 # =========================================================
+# MODULE 3 - PLACEMENT READINESS
+# =========================================================
+elif page == "🎯 Placement Readiness":
+
+    st.markdown(
+        """
+        <div class="hero">
+            <h1>🎯 Placement Readiness Engine</h1>
+            <h3>Know Where You Stand. Know What To Improve.</h3>
+            <p>
+                Analyze your preparation and get a personalized
+                placement readiness score.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    st.subheader("📊 Student Assessment")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        cgpa = st.number_input(
+            "🎓 CGPA",
+            min_value=0.0,
+            max_value=10.0,
+            value=7.5,
+            step=0.1
+        )
+
+        technical_skill_score = st.slider(
+            "💻 Technical Skills",
+            min_value=0,
+            max_value=100,
+            value=70
+        )
+
+        interview_score = st.slider(
+            "🎤 Interview Performance",
+            min_value=0,
+            max_value=100,
+            value=65
+        )
+
+    with col2:
+        project_score = st.slider(
+            "🚀 Project Strength",
+            min_value=0,
+            max_value=100,
+            value=70
+        )
+
+        certification_score = st.slider(
+            "📜 Certifications",
+            min_value=0,
+            max_value=100,
+            value=60
+        )
+
+        communication_score = st.slider(
+            "🗣️ Communication",
+            min_value=0,
+            max_value=100,
+            value=65
+        )
+
+    target_role = st.text_input(
+        "💼 Target Job Role",
+        placeholder="Example: Software Developer, Data Analyst, AI Engineer"
+    )
+
+    if st.button(
+        "🚀 Calculate Placement Readiness",
+        key="calculate_placement_readiness"
+    ):
+
+        if not target_role.strip():
+
+            st.warning(
+                "Please enter your target job role."
+            )
+
+        else:
+
+            # Convert CGPA to percentage-style score
+            cgpa_score = (cgpa / 10) * 100
+
+            # Weighted readiness calculation
+            placement_score = (
+                cgpa_score * 0.15 +
+                technical_skill_score * 0.25 +
+                interview_score * 0.20 +
+                project_score * 0.15 +
+                certification_score * 0.10 +
+                communication_score * 0.15
+            )
+
+            st.markdown("---")
+
+            st.subheader("🏆 Placement Readiness Score")
+
+            score_col1, score_col2, score_col3 = st.columns(3)
+
+            with score_col1:
+                st.metric(
+                    "Overall Score",
+                    f"{placement_score:.1f}/100"
+                )
+
+            with score_col2:
+                if placement_score >= 80:
+                    status = "Placement Ready 🟢"
+                elif placement_score >= 60:
+                    status = "Almost Ready 🟡"
+                else:
+                    status = "Needs Improvement 🔴"
+
+                st.metric(
+                    "Status",
+                    status
+                )
+
+            with score_col3:
+                st.metric(
+                    "Target Role",
+                    target_role
+                )
+
+            st.progress(
+                min(int(placement_score), 100)
+            )
+
+            # Category analysis
+            st.subheader("📈 Readiness Breakdown")
+
+            categories = {
+                "Academic": cgpa_score,
+                "Technical Skills": technical_skill_score,
+                "Interview": interview_score,
+                "Projects": project_score,
+                "Certifications": certification_score,
+                "Communication": communication_score
+            }
+
+            for category, score in categories.items():
+
+                st.write(
+                    f"**{category}: {score:.1f}%**"
+                )
+
+                st.progress(
+                    min(int(score), 100)
+                )
+
+            # Identify weak areas
+            weak_areas = sorted(
+                categories.items(),
+                key=lambda item: item[1]
+            )
+
+            st.subheader("⚠️ Areas To Improve")
+
+            for category, score in weak_areas[:3]:
+
+                if score < 70:
+
+                    st.warning(
+                        f"{category}: {score:.1f}% — "
+                        f"Focus on improving this area."
+                    )
+
+            # AI recommendations
+            st.subheader("🤖 AI Improvement Plan")
+
+            if client is None:
+
+                st.error(
+                    "Groq API key is not configured. "
+                    "Please check Streamlit Secrets."
+                )
+
+            else:
+
+                improvement_prompt = f"""
+You are a college placement mentor.
+
+A student's placement readiness information is:
+
+Target Role: {target_role}
+CGPA: {cgpa}
+Technical Skills: {technical_skill_score}/100
+Interview Performance: {interview_score}/100
+Project Strength: {project_score}/100
+Certifications: {certification_score}/100
+Communication: {communication_score}/100
+Overall Placement Score: {placement_score:.1f}/100
+
+Analyze this student and create a personalized improvement plan.
+
+Provide:
+
+1. Current readiness assessment
+2. Top 3 weaknesses
+3. What to improve first
+4. A 30-day improvement roadmap
+5. Recommended practice activities
+6. Final placement advice
+
+Keep it practical and suitable for a college student.
+"""
+
+                try:
+
+                    with st.spinner(
+                        "Creating your personalized placement plan..."
+                    ):
+
+                        response = client.chat.completions.create(
+                            model="openai/gpt-oss-20b",
+                            messages=[
+                                {
+                                    "role": "user",
+                                    "content": improvement_prompt
+                                }
+                            ]
+                        )
+
+                        improvement_plan = (
+                            response
+                            .choices[0]
+                            .message
+                            .content
+                        )
+
+                    st.write(
+                        improvement_plan
+                    )
+
+                except Exception as e:
+
+                    st.error(
+                        f"AI placement analysis failed: {e}"
+                    )
+# =========================================================
 # FOOTER
 # =========================================================
 st.markdown(
@@ -832,4 +1076,3 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-
