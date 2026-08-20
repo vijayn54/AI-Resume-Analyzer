@@ -1,8 +1,8 @@
-
 import streamlit as st
 from PyPDF2 import PdfReader
 import matplotlib.pyplot as plt
 from groq import Groq
+import re
 
 
 # =========================================================
@@ -28,13 +28,31 @@ except Exception:
 
 
 # =========================================================
+# INITIAL SESSION STATE
+# =========================================================
+if "ats_score" not in st.session_state:
+    st.session_state["ats_score"] = 0.0
+
+if "match_score" not in st.session_state:
+    st.session_state["match_score"] = 0.0
+
+if "found_skills" not in st.session_state:
+    st.session_state["found_skills"] = []
+
+if "interview_score" not in st.session_state:
+    st.session_state["interview_score"] = 0.0
+
+if "placement_score" not in st.session_state:
+    st.session_state["placement_score"] = 0.0
+
+
+# =========================================================
 # PREMIUM UNIVERSITY UI
 # =========================================================
 st.markdown(
     """
     <style>
 
-    /* Main background */
     .stApp {
         background: linear-gradient(
             135deg,
@@ -44,7 +62,6 @@ st.markdown(
         );
     }
 
-    /* Keep Streamlit header visible for sidebar controls */
     #MainMenu {
         visibility: hidden;
     }
@@ -53,7 +70,6 @@ st.markdown(
         visibility: hidden;
     }
 
-    /* Sidebar */
     section[data-testid="stSidebar"] {
         background: linear-gradient(
             180deg,
@@ -70,7 +86,6 @@ st.markdown(
         color: white !important;
     }
 
-    /* Hero */
     .hero {
         text-align: center;
         padding: 35px;
@@ -96,7 +111,6 @@ st.markdown(
         font-size: 18px;
     }
 
-    /* Metrics */
     [data-testid="stMetric"] {
         background: white;
         border-radius: 18px;
@@ -105,7 +119,6 @@ st.markdown(
         border: 1px solid #dbeafe;
     }
 
-    /* Buttons */
     .stButton > button {
         background: #2563eb;
         color: white;
@@ -120,7 +133,6 @@ st.markdown(
         background: #1d4ed8;
     }
 
-    /* File uploader */
     div[data-testid="stFileUploader"] {
         background: white;
         border-radius: 15px;
@@ -128,18 +140,15 @@ st.markdown(
         border: 1px solid #dbeafe;
     }
 
-    /* Text areas */
     textarea {
         border-radius: 12px !important;
     }
 
-    /* Select boxes / inputs */
     div[data-baseweb="select"] > div,
     div[data-baseweb="input"] > div {
         border-radius: 12px !important;
     }
 
-    /* Section cards */
     .section-card {
         background: white;
         padding: 22px;
@@ -149,7 +158,6 @@ st.markdown(
         border: 1px solid #e0f2fe;
     }
 
-    /* Footer */
     .app-footer {
         text-align: center;
         padding: 25px;
@@ -193,6 +201,8 @@ st.sidebar.markdown(
     """
 )
 
+st.sidebar.markdown("---")
+
 page = st.sidebar.radio(
     "Choose Module",
     [
@@ -235,14 +245,18 @@ if page == "📄 Resume Analyzer":
         unsafe_allow_html=True
     )
 
-    # Job description
+    # -------------------------------------------------
+    # JOB DESCRIPTION
+    # -------------------------------------------------
     job_description = st.text_area(
         "📋 Paste the Job Description Here",
         height=200,
         placeholder="Paste the target job description here..."
     )
 
-    # Resume upload
+    # -------------------------------------------------
+    # RESUME UPLOAD
+    # -------------------------------------------------
     uploaded_file = st.file_uploader(
         "📄 Upload your Resume (PDF)",
         type=["pdf"]
@@ -318,10 +332,13 @@ if page == "📄 Resume Analyzer":
             len(found_skills) / len(skills)
         ) * 100
 
+        st.session_state["ats_score"] = ats_score
+        st.session_state["found_skills"] = found_skills
+
         # -------------------------------------------------
         # JOB MATCH SCORE
         # -------------------------------------------------
-        match_score = 0
+        match_score = 0.0
 
         if job_description.strip():
 
@@ -345,6 +362,8 @@ if page == "📄 Resume Analyzer":
                     len(matched_words)
                     / len(jd_words)
                 ) * 100
+
+        st.session_state["match_score"] = match_score
 
         # -------------------------------------------------
         # MISSING SKILLS
@@ -392,7 +411,9 @@ if page == "📄 Resume Analyzer":
             for index, skill in enumerate(found_skills):
 
                 with skill_columns[index % 3]:
-                    st.success(f"✅ {skill}")
+                    st.success(
+                        f"✅ {skill}"
+                    )
 
         else:
 
@@ -436,7 +457,9 @@ if page == "📄 Resume Analyzer":
             )
 
             for skill in missing_skills:
-                st.write(f"❌ {skill}")
+                st.write(
+                    f"❌ {skill}"
+                )
 
         else:
 
@@ -449,7 +472,9 @@ if page == "📄 Resume Analyzer":
         # -------------------------------------------------
         if job_description.strip():
 
-            st.subheader("🎯 Job Match Analysis")
+            st.subheader(
+                "🎯 Job Match Analysis"
+            )
 
             st.progress(
                 min(int(match_score), 100)
@@ -488,7 +513,9 @@ Missing Skills:
         # -------------------------------------------------
         # AI FEEDBACK
         # -------------------------------------------------
-        st.subheader("🤖 AI Resume Feedback")
+        st.subheader(
+            "🤖 AI Resume Feedback"
+        )
 
         if st.button(
             "✨ Generate AI Feedback",
@@ -594,7 +621,9 @@ elif page == "🎤 Interview Preparation":
     # -------------------------------------------------
     # INTERVIEW TYPE
     # -------------------------------------------------
-    st.subheader("🎯 Choose Interview Type")
+    st.subheader(
+        "🎯 Choose Interview Type"
+    )
 
     interview_type = st.selectbox(
         "Select Interview Mode",
@@ -701,7 +730,9 @@ Keep the language clear and student-friendly.
                         "📚 Your Interview Questions"
                     )
 
-                    st.write(questions)
+                    st.write(
+                        questions
+                    )
 
                 except Exception as e:
 
@@ -715,15 +746,20 @@ Keep the language clear and student-friendly.
 
     st.markdown("---")
 
-    st.subheader("🎤 Mock Interview")
+    st.subheader(
+        "🎤 Mock Interview"
+    )
 
     st.write(
-        "Practice answering an interview question and get an AI evaluation."
+        "Practice answering an interview question and "
+        "get an AI evaluation."
     )
 
     mock_question = st.text_area(
         "💬 Enter an interview question",
-        placeholder="Example: Explain your AI Resume Analyzer project."
+        placeholder=(
+            "Example: Explain your AI Resume Analyzer project."
+        )
     )
 
     student_answer = st.text_area(
@@ -771,14 +807,21 @@ Interview Question:
 Student Answer:
 {student_answer}
 
-Evaluate the answer and provide:
+Evaluate the answer.
 
-1. Score out of 10
-2. What the student did well
-3. What could be improved
-4. Important points that were missed
-5. A better sample answer
-6. One practical tip for the next interview
+Your response MUST start with exactly one line in this format:
+
+SCORE: X
+
+where X is a number from 0 to 10.
+
+Then provide:
+
+1. What the student did well
+2. What could be improved
+3. Important points that were missed
+4. A better sample answer
+5. One practical tip for the next interview
 
 Be encouraging, honest, and student-friendly.
 """
@@ -802,17 +845,62 @@ Be encouraging, honest, and student-friendly.
                         .content
                     )
 
+                    # -------------------------------------------------
+                    # EXTRACT INTERVIEW SCORE
+                    # -------------------------------------------------
+                    score_match = re.search(
+                        r"^\s*SCORE\s*:\s*(10(?:\.0)?|[0-9](?:\.[0-9])?)\s*$",
+                        evaluation,
+                        re.IGNORECASE | re.MULTILINE
+                    )
+
+                    if score_match:
+
+                        score_value = float(
+                            score_match.group(1)
+                        )
+
+                        score_value = max(
+                            0.0,
+                            min(score_value, 10.0)
+                        )
+
+                        interview_score = (
+                            score_value * 10
+                        )
+
+                        st.session_state[
+                            "interview_score"
+                        ] = interview_score
+
+                        st.metric(
+                            "Interview Score",
+                            f"{interview_score:.0f}/100"
+                        )
+
+                    else:
+
+                        st.warning(
+                            "The AI response did not return "
+                            "a valid SCORE line, so the interview "
+                            "score could not be saved."
+                        )
+
                     st.subheader(
                         "📊 AI Interview Evaluation"
                     )
 
-                    st.write(evaluation)
+                    st.write(
+                        evaluation
+                    )
 
                 except Exception as e:
 
                     st.error(
                         f"AI evaluation failed: {e}"
                     )
+
+
 # =========================================================
 # MODULE 3 - PLACEMENT READINESS
 # =========================================================
@@ -832,11 +920,102 @@ elif page == "🎯 Placement Readiness":
         unsafe_allow_html=True
     )
 
-    st.subheader("📊 Student Assessment")
+    st.subheader(
+        "📊 Student Assessment"
+    )
+
+    # -------------------------------------------------
+    # CONNECTED SCORES
+    # -------------------------------------------------
+    ats_score = st.session_state.get(
+        "ats_score",
+        0.0
+    )
+
+    match_score = st.session_state.get(
+        "match_score",
+        0.0
+    )
+
+    interview_score = st.session_state.get(
+        "interview_score",
+        0.0
+    )
+
+    found_skills = st.session_state.get(
+        "found_skills",
+        []
+    )
+
+    st.markdown("---")
+
+    st.subheader(
+        "🔗 Connected Module Scores"
+    )
+
+    c1, c2, c3 = st.columns(3)
+
+    with c1:
+
+        st.metric(
+            "Resume ATS",
+            f"{ats_score:.1f}%"
+        )
+
+    with c2:
+
+        st.metric(
+            "Job Match",
+            f"{match_score:.1f}%"
+        )
+
+    with c3:
+
+        st.metric(
+            "Interview",
+            f"{interview_score:.1f}%"
+        )
+
+    if ats_score == 0:
+
+        st.info(
+            "📄 Analyze a resume first to load your ATS score."
+        )
+
+    if match_score == 0:
+
+        st.info(
+            "🎯 Add a job description in Resume Analyzer "
+            "to load the Job Match score."
+        )
+
+    if interview_score == 0:
+
+        st.info(
+            "🎤 Complete a Mock Interview to load "
+            "your Interview score."
+        )
+
+    if found_skills:
+
+        st.write(
+            "Detected Skills: "
+            + ", ".join(found_skills)
+        )
+
+    # -------------------------------------------------
+    # REMAINING INPUTS
+    # -------------------------------------------------
+    st.markdown("---")
+
+    st.subheader(
+        "📝 Additional Assessment"
+    )
 
     col1, col2 = st.columns(2)
 
     with col1:
+
         cgpa = st.number_input(
             "🎓 CGPA",
             min_value=0.0,
@@ -845,27 +1024,14 @@ elif page == "🎯 Placement Readiness":
             step=0.1
         )
 
-        technical_skill_score = st.slider(
-            "💻 Technical Skills",
-            min_value=0,
-            max_value=100,
-            value=70
-        )
-
-        interview_score = st.slider(
-            "🎤 Interview Performance",
-            min_value=0,
-            max_value=100,
-            value=65
-        )
-
-    with col2:
         project_score = st.slider(
             "🚀 Project Strength",
             min_value=0,
             max_value=100,
             value=70
         )
+
+    with col2:
 
         certification_score = st.slider(
             "📜 Certifications",
@@ -883,9 +1049,15 @@ elif page == "🎯 Placement Readiness":
 
     target_role = st.text_input(
         "💼 Target Job Role",
-        placeholder="Example: Software Developer, Data Analyst, AI Engineer"
+        placeholder=(
+            "Example: Software Developer, "
+            "Data Analyst, AI Engineer"
+        )
     )
 
+    # -------------------------------------------------
+    # CALCULATE READINESS
+    # -------------------------------------------------
     if st.button(
         "🚀 Calculate Placement Readiness",
         key="calculate_placement_readiness"
@@ -899,38 +1071,61 @@ elif page == "🎯 Placement Readiness":
 
         else:
 
-            # Convert CGPA to percentage-style score
-            cgpa_score = (cgpa / 10) * 100
+            cgpa_score = (
+                cgpa / 10
+            ) * 100
 
-            # Weighted readiness calculation
+            technical_skill_score = ats_score
+
             placement_score = (
-                cgpa_score * 0.15 +
-                technical_skill_score * 0.25 +
-                interview_score * 0.20 +
-                project_score * 0.15 +
-                certification_score * 0.10 +
-                communication_score * 0.15
+                cgpa_score * 0.15
+                + technical_skill_score * 0.25
+                + interview_score * 0.20
+                + project_score * 0.15
+                + certification_score * 0.10
+                + communication_score * 0.15
             )
+
+            st.session_state[
+                "placement_score"
+            ] = placement_score
 
             st.markdown("---")
 
-            st.subheader("🏆 Placement Readiness Score")
+            st.subheader(
+                "🏆 Placement Readiness Score"
+            )
 
-            score_col1, score_col2, score_col3 = st.columns(3)
+            score_col1, score_col2, score_col3 = (
+                st.columns(3)
+            )
 
             with score_col1:
+
                 st.metric(
                     "Overall Score",
                     f"{placement_score:.1f}/100"
                 )
 
             with score_col2:
+
                 if placement_score >= 80:
-                    status = "Placement Ready 🟢"
+
+                    status = (
+                        "Placement Ready 🟢"
+                    )
+
                 elif placement_score >= 60:
-                    status = "Almost Ready 🟡"
+
+                    status = (
+                        "Almost Ready 🟡"
+                    )
+
                 else:
-                    status = "Needs Improvement 🔴"
+
+                    status = (
+                        "Needs Improvement 🔴"
+                    )
 
                 st.metric(
                     "Status",
@@ -938,6 +1133,7 @@ elif page == "🎯 Placement Readiness":
                 )
 
             with score_col3:
+
                 st.metric(
                     "Target Role",
                     target_role
@@ -947,13 +1143,18 @@ elif page == "🎯 Placement Readiness":
                 min(int(placement_score), 100)
             )
 
-            # Category analysis
-            st.subheader("📈 Readiness Breakdown")
+            # -------------------------------------------------
+            # BREAKDOWN
+            # -------------------------------------------------
+            st.subheader(
+                "📈 Readiness Breakdown"
+            )
 
             categories = {
                 "Academic": cgpa_score,
-                "Technical Skills": technical_skill_score,
+                "Resume / Technical": technical_skill_score,
                 "Interview": interview_score,
+                "Job Match": match_score,
                 "Projects": project_score,
                 "Certifications": certification_score,
                 "Communication": communication_score
@@ -969,25 +1170,43 @@ elif page == "🎯 Placement Readiness":
                     min(int(score), 100)
                 )
 
-            # Identify weak areas
+            # -------------------------------------------------
+            # WEAK AREAS
+            # -------------------------------------------------
             weak_areas = sorted(
                 categories.items(),
                 key=lambda item: item[1]
             )
 
-            st.subheader("⚠️ Areas To Improve")
+            st.subheader(
+                "⚠️ Areas To Improve"
+            )
+
+            improvements_found = False
 
             for category, score in weak_areas[:3]:
 
                 if score < 70:
 
+                    improvements_found = True
+
                     st.warning(
                         f"{category}: {score:.1f}% — "
-                        f"Focus on improving this area."
+                        "Focus on improving this area."
                     )
 
-            # AI recommendations
-            st.subheader("🤖 AI Improvement Plan")
+            if not improvements_found:
+
+                st.success(
+                    "🎉 No major weak areas were detected."
+                )
+
+            # -------------------------------------------------
+            # AI IMPROVEMENT PLAN
+            # -------------------------------------------------
+            st.subheader(
+                "🤖 AI Improvement Plan"
+            )
 
             if client is None:
 
@@ -1004,15 +1223,27 @@ You are a college placement mentor.
 A student's placement readiness information is:
 
 Target Role: {target_role}
+
 CGPA: {cgpa}
-Technical Skills: {technical_skill_score}/100
-Interview Performance: {interview_score}/100
+
+Resume / Technical Score: {technical_skill_score:.1f}/100
+
+Interview Performance: {interview_score:.1f}/100
+
+Job Match Score: {match_score:.1f}/100
+
 Project Strength: {project_score}/100
+
 Certifications: {certification_score}/100
+
 Communication: {communication_score}/100
+
 Overall Placement Score: {placement_score:.1f}/100
 
-Analyze this student and create a personalized improvement plan.
+Detected Skills:
+{", ".join(found_skills) if found_skills else "No skills detected yet"}
+
+Create a personalized improvement plan.
 
 Provide:
 
@@ -1023,7 +1254,7 @@ Provide:
 5. Recommended practice activities
 6. Final placement advice
 
-Keep it practical and suitable for a college student.
+Keep it practical, honest, and suitable for a college student.
 """
 
                 try:
@@ -1058,6 +1289,8 @@ Keep it practical and suitable for a college student.
                     st.error(
                         f"AI placement analysis failed: {e}"
                     )
+
+
 # =========================================================
 # FOOTER
 # =========================================================
