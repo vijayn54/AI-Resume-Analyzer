@@ -1,3 +1,4 @@
+
 import streamlit as st
 from PyPDF2 import PdfReader
 import matplotlib.pyplot as plt
@@ -197,7 +198,8 @@ st.sidebar.markdown(
     ✅ Job Match Analysis  
     ✅ AI Resume Feedback  
     ✅ Interview Preparation  
-    ✅ Placement Preparation
+    ✅ Placement Readiness  
+    ✅ Skill Gap Analysis
     """
 )
 
@@ -275,16 +277,21 @@ if page == "📄 Resume Analyzer":
             text = ""
 
             for page_content in pdf_reader.pages:
+
                 page_text = page_content.extract_text()
 
                 if page_text:
                     text += page_text + "\n"
 
         except Exception as e:
-            st.error(f"Could not read the PDF: {e}")
+
+            st.error(
+                f"Could not read the PDF: {e}"
+            )
             st.stop()
 
         if not text.strip():
+
             st.warning(
                 "No readable text was found in this PDF."
             )
@@ -322,6 +329,7 @@ if page == "📄 Resume Analyzer":
         found_skills = []
 
         for skill in skills:
+
             if skill.lower() in resume_lower:
                 found_skills.append(skill)
 
@@ -382,18 +390,21 @@ if page == "📄 Resume Analyzer":
         col1, col2, col3 = st.columns(3)
 
         with col1:
+
             st.metric(
                 "ATS Score",
                 f"{ats_score:.1f}%"
             )
 
         with col2:
+
             st.metric(
                 "Job Match",
                 f"{match_score:.1f}%"
             )
 
         with col3:
+
             st.metric(
                 "Skills Found",
                 len(found_skills)
@@ -411,6 +422,7 @@ if page == "📄 Resume Analyzer":
             for index, skill in enumerate(found_skills):
 
                 with skill_columns[index % 3]:
+
                     st.success(
                         f"✅ {skill}"
                     )
@@ -457,6 +469,7 @@ if page == "📄 Resume Analyzer":
             )
 
             for skill in missing_skills:
+
                 st.write(
                     f"❌ {skill}"
                 )
@@ -578,7 +591,9 @@ Resume:
                             "### 🧠 AI Analysis"
                         )
 
-                        st.write(feedback)
+                        st.write(
+                            feedback
+                        )
 
                     except Exception as e:
 
@@ -849,9 +864,9 @@ Be encouraging, honest, and student-friendly.
                     # EXTRACT INTERVIEW SCORE
                     # -------------------------------------------------
                     score_match = re.search(
-                        r"^\s*SCORE\s*:\s*(10(?:\.0)?|[0-9](?:\.[0-9])?)\s*$",
+                        r"SCORE\s*:\s*(10(?:\.0)?|[0-9](?:\.[0-9])?)",
                         evaluation,
-                        re.IGNORECASE | re.MULTILINE
+                        re.IGNORECASE
                     )
 
                     if score_match:
@@ -862,7 +877,10 @@ Be encouraging, honest, and student-friendly.
 
                         score_value = max(
                             0.0,
-                            min(score_value, 10.0)
+                            min(
+                                score_value,
+                                10.0
+                            )
                         )
 
                         interview_score = (
@@ -882,8 +900,7 @@ Be encouraging, honest, and student-friendly.
 
                         st.warning(
                             "The AI response did not return "
-                            "a valid SCORE line, so the interview "
-                            "score could not be saved."
+                            "a valid score."
                         )
 
                     st.subheader(
@@ -920,13 +937,9 @@ elif page == "🎯 Placement Readiness":
         unsafe_allow_html=True
     )
 
-    st.subheader(
-        "📊 Student Assessment"
-    )
-
-    # -------------------------------------------------
-    # CONNECTED SCORES
-    # -------------------------------------------------
+    # =================================================
+    # CONNECTED DATA
+    # =================================================
     ats_score = st.session_state.get(
         "ats_score",
         0.0
@@ -947,8 +960,9 @@ elif page == "🎯 Placement Readiness":
         []
     )
 
-    st.markdown("---")
-
+    # =================================================
+    # CONNECTED MODULE SCORES
+    # =================================================
     st.subheader(
         "🔗 Connected Module Scores"
     )
@@ -1003,9 +1017,9 @@ elif page == "🎯 Placement Readiness":
             + ", ".join(found_skills)
         )
 
-    # -------------------------------------------------
-    # REMAINING INPUTS
-    # -------------------------------------------------
+    # =================================================
+    # ADDITIONAL ASSESSMENT
+    # =================================================
     st.markdown("---")
 
     st.subheader(
@@ -1055,9 +1069,113 @@ elif page == "🎯 Placement Readiness":
         )
     )
 
-    # -------------------------------------------------
-    # CALCULATE READINESS
-    # -------------------------------------------------
+    # =================================================
+    # SKILL GAP ANALYZER
+    # =================================================
+    st.markdown("---")
+
+    st.subheader(
+        "🧩 AI Skill Gap Analyzer"
+    )
+
+    st.write(
+        "Compare your resume skills with the skills required "
+        "for your target role."
+    )
+
+    if st.button(
+        "🔍 Analyze Skill Gap",
+        key="analyze_skill_gap"
+    ):
+
+        if not target_role.strip():
+
+            st.warning(
+                "Please enter your target job role first."
+            )
+
+        elif client is None:
+
+            st.error(
+                "Groq API key is not configured."
+            )
+
+        elif not found_skills:
+
+            st.warning(
+                "Please analyze your resume first so the system "
+                "can detect your current skills."
+            )
+
+        else:
+
+            with st.spinner(
+                "Analyzing required skills for your target role..."
+            ):
+
+                skill_gap_prompt = f"""
+You are an expert career and placement advisor.
+
+Target Job Role:
+{target_role}
+
+Student's Current Skills:
+{", ".join(found_skills)}
+
+Analyze the target role and identify the most important
+technical and professional skills normally expected for that role.
+
+Compare the target-role requirements with the student's skills.
+
+Return exactly these sections:
+
+1. REQUIRED SKILLS
+2. SKILLS YOU ALREADY HAVE
+3. MISSING SKILLS
+4. TOP 5 PRIORITY SKILLS TO LEARN
+5. PERSONALIZED LEARNING ROADMAP
+
+Make the recommendations realistic for a college student.
+"""
+
+                try:
+
+                    response = client.chat.completions.create(
+                        model="openai/gpt-oss-20b",
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": skill_gap_prompt
+                            }
+                        ]
+                    )
+
+                    skill_gap_result = (
+                        response
+                        .choices[0]
+                        .message
+                        .content
+                    )
+
+                    st.subheader(
+                        "📊 Skill Gap Report"
+                    )
+
+                    st.write(
+                        skill_gap_result
+                    )
+
+                except Exception as e:
+
+                    st.error(
+                        f"Skill gap analysis failed: {e}"
+                    )
+
+    # =================================================
+    # PLACEMENT READINESS SCORE
+    # =================================================
+    st.markdown("---")
+
     if st.button(
         "🚀 Calculate Placement Readiness",
         key="calculate_placement_readiness"
@@ -1081,8 +1199,9 @@ elif page == "🎯 Placement Readiness":
                 cgpa_score * 0.15
                 + technical_skill_score * 0.25
                 + interview_score * 0.20
-                + project_score * 0.15
-                + certification_score * 0.10
+                + match_score * 0.10
+                + project_score * 0.10
+                + certification_score * 0.05
                 + communication_score * 0.15
             )
 
@@ -1140,12 +1259,15 @@ elif page == "🎯 Placement Readiness":
                 )
 
             st.progress(
-                min(int(placement_score), 100)
+                min(
+                    int(placement_score),
+                    100
+                )
             )
 
-            # -------------------------------------------------
-            # BREAKDOWN
-            # -------------------------------------------------
+            # =================================================
+            # READINESS BREAKDOWN
+            # =================================================
             st.subheader(
                 "📈 Readiness Breakdown"
             )
@@ -1167,12 +1289,15 @@ elif page == "🎯 Placement Readiness":
                 )
 
                 st.progress(
-                    min(int(score), 100)
+                    min(
+                        int(score),
+                        100
+                    )
                 )
 
-            # -------------------------------------------------
+            # =================================================
             # WEAK AREAS
-            # -------------------------------------------------
+            # =================================================
             weak_areas = sorted(
                 categories.items(),
                 key=lambda item: item[1]
@@ -1201,9 +1326,9 @@ elif page == "🎯 Placement Readiness":
                     "🎉 No major weak areas were detected."
                 )
 
-            # -------------------------------------------------
+            # =================================================
             # AI IMPROVEMENT PLAN
-            # -------------------------------------------------
+            # =================================================
             st.subheader(
                 "🤖 AI Improvement Plan"
             )
@@ -1222,23 +1347,32 @@ You are a college placement mentor.
 
 A student's placement readiness information is:
 
-Target Role: {target_role}
+Target Role:
+{target_role}
 
-CGPA: {cgpa}
+CGPA:
+{cgpa}
 
-Resume / Technical Score: {technical_skill_score:.1f}/100
+Resume / Technical Score:
+{technical_skill_score:.1f}/100
 
-Interview Performance: {interview_score:.1f}/100
+Interview Performance:
+{interview_score:.1f}/100
 
-Job Match Score: {match_score:.1f}/100
+Job Match Score:
+{match_score:.1f}/100
 
-Project Strength: {project_score}/100
+Project Strength:
+{project_score}/100
 
-Certifications: {certification_score}/100
+Certifications:
+{certification_score}/100
 
-Communication: {communication_score}/100
+Communication:
+{communication_score}/100
 
-Overall Placement Score: {placement_score:.1f}/100
+Overall Placement Score:
+{placement_score:.1f}/100
 
 Detected Skills:
 {", ".join(found_skills) if found_skills else "No skills detected yet"}
@@ -1309,3 +1443,4 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
