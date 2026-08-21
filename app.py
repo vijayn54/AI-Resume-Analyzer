@@ -227,12 +227,12 @@ if page == "🏠 Home":
     st.markdown(
         """
         <div class="hero">
-            <h1>📊 Student Placement Dashboard</h1>
-            <h3>Your Campus Companion Overview</h3>
-            <p>
-                Track your resume, interview, skills, job match,
-                and placement readiness in one place.
-            </p>
+            <h1>🎓 Campus Companion AI</h1>
+<h3>Your Personal Placement & Career Assistant</h3>
+<p>
+    Analyze your resume, practice interviews, identify skill gaps,
+    and track your placement readiness in one place.
+</p>
         </div>
         """,
         unsafe_allow_html=True
@@ -301,35 +301,36 @@ if page == "🏠 Home":
             "Placement",
             f"{placement_score:.1f}/100"
         )
-        st.markdown("---")
 
-        st.subheader("🚀 Your Next Best Action")
+    # -------------------------------------------------
+    # NEXT BEST ACTION
+    # -------------------------------------------------
+    st.markdown("---")
 
-        if placement_score <= 0:
-            st.info(
-                "📄 Start by analyzing your resume and completing "
-                "a mock interview."
-            )
+    st.subheader("🚀 Your Next Best Action")
 
-        elif placement_score < 60:
-            st.warning(
-                "🎯 Focus on improving your technical skills and "
-                "interview performance."
-            )
+    if placement_score <= 0:
+        st.info(
+            "📄 Start by analyzing your resume and completing "
+            "a mock interview."
+        )
+    elif placement_score < 60:
+        st.warning(
+            "🎯 Focus on improving your technical skills and "
+            "interview performance."
+        )
+    elif placement_score < 80:
+        st.info(
+            "🧩 Work on your skill gaps and complete more "
+            "mock interviews."
+        )
+    else:
+        st.success(
+            "🎉 You're showing strong placement readiness. "
+            "Keep practicing and close your remaining skill gaps."
+        )
 
-        elif placement_score < 80:
-            st.info(
-                "🧩 Work on your skill gaps and complete more "
-                "mock interviews."
-            )
-
-        else:
-            st.success(
-                "🎉 You're showing strong placement readiness. "
-                "Keep practicing and close your remaining skill gaps."
-            )
-
-        # -------------------------------------------------
+    # -------------------------------------------------
     # PROGRESS
     # -------------------------------------------------
     st.markdown("---")
@@ -348,29 +349,6 @@ if page == "🏠 Home":
         )
         st.progress(
             min(max(int(score), 0), 100)
-        )
-
-    # -------------------------------------------------
-    # SKILLS
-    # -------------------------------------------------
-    st.markdown("---")
-    st.subheader("🧩 Detected Skills")
-
-    if found_skills:
-
-        skill_cols = st.columns(3)
-
-        for index, skill in enumerate(found_skills):
-
-            with skill_cols[index % 3]:
-                st.success(
-                    f"✅ {skill}"
-                )
-
-    else:
-
-        st.info(
-            "Analyze your resume to display detected skills."
         )
 
     # -------------------------------------------------
