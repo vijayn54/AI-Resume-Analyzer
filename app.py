@@ -46,6 +46,9 @@ if "interview_score" not in st.session_state:
 if "placement_score" not in st.session_state:
     st.session_state["placement_score"] = 0.0
 
+if "skill_gap_result" not in st.session_state:
+    st.session_state["skill_gap_result"] = ""
+
 
 # =========================================================
 # PREMIUM UNIVERSITY UI
@@ -208,11 +211,229 @@ st.sidebar.markdown("---")
 page = st.sidebar.radio(
     "Choose Module",
     [
+        "🏠 Home",
         "📄 Resume Analyzer",
         "🎤 Interview Preparation",
         "🎯 Placement Readiness"
     ]
 )
+
+
+# =========================================================
+# MODULE 0 - STUDENT DASHBOARD
+# =========================================================
+if page == "🏠 Home":
+
+    st.markdown(
+        """
+        <div class="hero">
+            <h1>📊 Student Placement Dashboard</h1>
+            <h3>Your Campus Companion Overview</h3>
+            <p>
+                Track your resume, interview, skills, job match,
+                and placement readiness in one place.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # -------------------------------------------------
+    # CONNECTED SCORES
+    # -------------------------------------------------
+    ats_score = st.session_state.get(
+        "ats_score",
+        0.0
+    )
+
+    match_score = st.session_state.get(
+        "match_score",
+        0.0
+    )
+
+    interview_score = st.session_state.get(
+        "interview_score",
+        0.0
+    )
+
+    placement_score = st.session_state.get(
+        "placement_score",
+        0.0
+    )
+
+    found_skills = st.session_state.get(
+        "found_skills",
+        []
+    )
+
+    skill_gap_result = st.session_state.get(
+        "skill_gap_result",
+        ""
+    )
+
+    # -------------------------------------------------
+    # PERFORMANCE CARDS
+    # -------------------------------------------------
+    st.subheader("🎯 Current Performance")
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        st.metric(
+            "Resume ATS",
+            f"{ats_score:.1f}%"
+        )
+
+    with col2:
+        st.metric(
+            "Job Match",
+            f"{match_score:.1f}%"
+        )
+
+    with col3:
+        st.metric(
+            "Interview",
+            f"{interview_score:.1f}%"
+        )
+
+    with col4:
+        st.metric(
+            "Placement",
+            f"{placement_score:.1f}/100"
+        )
+        st.markdown("---")
+
+        st.subheader("🚀 Your Next Best Action")
+
+        if placement_score <= 0:
+            st.info(
+                "📄 Start by analyzing your resume and completing "
+                "a mock interview."
+            )
+
+        elif placement_score < 60:
+            st.warning(
+                "🎯 Focus on improving your technical skills and "
+                "interview performance."
+            )
+
+        elif placement_score < 80:
+            st.info(
+                "🧩 Work on your skill gaps and complete more "
+                "mock interviews."
+            )
+
+        else:
+            st.success(
+                "🎉 You're showing strong placement readiness. "
+                "Keep practicing and close your remaining skill gaps."
+            )
+
+        # -------------------------------------------------
+    # PROGRESS
+    # -------------------------------------------------
+    st.markdown("---")
+    st.subheader("📈 Progress Overview")
+
+    progress_items = {
+        "Resume ATS": ats_score,
+        "Job Match": match_score,
+        "Interview": interview_score,
+        "Placement Readiness": placement_score
+    }
+
+    for name, score in progress_items.items():
+        st.write(
+            f"**{name}: {score:.1f}%**"
+        )
+        st.progress(
+            min(max(int(score), 0), 100)
+        )
+
+    # -------------------------------------------------
+    # SKILLS
+    # -------------------------------------------------
+    st.markdown("---")
+    st.subheader("🧩 Detected Skills")
+
+    if found_skills:
+
+        skill_cols = st.columns(3)
+
+        for index, skill in enumerate(found_skills):
+
+            with skill_cols[index % 3]:
+                st.success(
+                    f"✅ {skill}"
+                )
+
+    else:
+
+        st.info(
+            "Analyze your resume to display detected skills."
+        )
+
+    # -------------------------------------------------
+    # SKILL GAP SUMMARY
+    # -------------------------------------------------
+    st.markdown("---")
+    st.subheader("🧠 Skill Gap Status")
+
+    if skill_gap_result:
+
+        # Try to show the most relevant part of the report
+        missing_match = re.search(
+            r"3\.\s*MISSING SKILLS\s*(.*?)(?=4\.\s*TOP 5 PRIORITY SKILLS TO LEARN|$)",
+            skill_gap_result,
+            re.IGNORECASE | re.DOTALL
+        )
+
+        if missing_match:
+            st.warning(
+                missing_match.group(1).strip()
+            )
+        else:
+            st.write(
+                "A Skill Gap Report has been generated in "
+                "Placement Readiness."
+            )
+
+    else:
+
+        st.info(
+            "Run Skill Gap Analysis from Placement Readiness "
+            "to see your current skill-gap status."
+        )
+
+    # -------------------------------------------------
+    # READINESS MESSAGE
+    # -------------------------------------------------
+    st.markdown("---")
+    st.subheader("🚀 Recommended Next Step")
+
+    if placement_score <= 0:
+        st.info(
+            "Start by analyzing your resume, completing a mock interview, "
+            "and calculating your placement readiness."
+        )
+
+    elif placement_score < 60:
+        st.warning(
+            "Focus on building your technical skills, improving your resume, "
+            "and practicing interviews."
+        )
+
+    elif placement_score < 80:
+        st.info(
+            "You're progressing well. Work on your skill gaps and interview "
+            "performance to become placement ready."
+        )
+
+    else:
+        st.success(
+            "🎉 Strong placement readiness. Keep improving your skill gaps "
+            "and maintain regular interview practice."
+        )
 
 
 # =========================================================
@@ -1157,6 +1378,8 @@ Make the recommendations realistic for a college student.
                         .content
                     )
 
+                    st.session_state["skill_gap_result"] = skill_gap_result
+
                     st.subheader(
                         "📊 Skill Gap Report"
                     )
@@ -1443,4 +1666,5 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 
