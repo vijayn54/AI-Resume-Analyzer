@@ -27,7 +27,6 @@ try:
 except Exception:
     client = None
 
-
 # =========================================================
 # INITIAL SESSION STATE
 # =========================================================
@@ -45,6 +44,9 @@ if "interview_score" not in st.session_state:
 
 if "placement_score" not in st.session_state:
     st.session_state["placement_score"] = 0.0
+
+if "placement_history" not in st.session_state:
+    st.session_state["placement_history"] = []
 
 if "skill_gap_result" not in st.session_state:
     st.session_state["skill_gap_result"] = ""
@@ -349,6 +351,60 @@ if page == "🏠 Home":
         )
         st.progress(
             min(max(int(score), 0), 100)
+        )
+    # -------------------------------------------------
+    # PROGRESS HISTORY
+    # -------------------------------------------------
+    st.markdown("---")
+    st.subheader("📈 Placement Progress History")
+
+    placement_history = st.session_state.get(
+        "placement_history",
+        []
+    )
+
+    if placement_history:
+
+        history_data = {
+            "Attempt": list(
+                range(1, len(placement_history) + 1)
+            ),
+            "Placement Score": placement_history
+        }
+
+        st.line_chart(
+            history_data,
+            x="Attempt",
+            y="Placement Score"
+        )
+
+        if len(placement_history) >= 2:
+
+            improvement = (
+                placement_history[-1]
+                - placement_history[0]
+            )
+
+            if improvement > 0:
+                st.success(
+                    f"🚀 Improvement: +{improvement:.1f} points"
+                )
+
+            elif improvement < 0:
+                st.warning(
+                    f"📉 Change: {improvement:.1f} points"
+                )
+
+            else:
+                st.info(
+                    "Your placement score has not changed yet."
+                )
+
+    else:
+
+        st.info(
+            "Calculate your Placement Readiness to start "
+            "building your progress history."
         )
 
     # -------------------------------------------------
@@ -1409,6 +1465,10 @@ Make the recommendations realistic for a college student.
             st.session_state[
                 "placement_score"
             ] = placement_score
+
+            st.session_state["placement_history"].append(
+                round(placement_score, 1)
+            )
 
             st.markdown("---")
 
