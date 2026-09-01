@@ -51,6 +51,12 @@ if "placement_history" not in st.session_state:
 if "skill_gap_result" not in st.session_state:
     st.session_state["skill_gap_result"] = ""
 
+if "job_analysis" not in st.session_state:
+    st.session_state["job_analysis"] = ""
+
+if "job_fit_score" not in st.session_state:
+    st.session_state["job_fit_score"] = 0.0
+
 
 # =========================================================
 # PREMIUM UNIVERSITY UI
@@ -1704,5 +1710,3 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-
-
