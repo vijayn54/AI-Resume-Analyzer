@@ -49,6 +49,15 @@ if "placement_score" not in st.session_state:
 if "skill_gap_result" not in st.session_state:
     st.session_state["skill_gap_result"] = ""
 
+if "job_fit_score" not in st.session_state:
+    st.session_state["job_fit_score"] = 0.0
+
+if "advanced_ats_score" not in st.session_state:
+    st.session_state["advanced_ats_score"] = 0.0
+
+if "advanced_ats_result" not in st.session_state:
+    st.session_state["advanced_ats_result"] = ""
+
 
 # =========================================================
 # PREMIUM UNIVERSITY UI
@@ -197,8 +206,10 @@ st.sidebar.markdown(
     ### ✨ Features
 
     ✅ ATS Score  
+    ✅ Advanced ATS Analyzer  
     ✅ Skill Detection  
     ✅ Job Match Analysis  
+    ✅ AI Job Fit Score  
     ✅ AI Resume Feedback  
     ✅ Interview Preparation  
     ✅ Placement Readiness  
@@ -256,6 +267,16 @@ if page == "🏠 Home":
         0.0
     )
 
+    job_fit_score = st.session_state.get(
+        "job_fit_score",
+        0.0
+    )
+
+    advanced_ats_score = st.session_state.get(
+        "advanced_ats_score",
+        0.0
+    )
+
     placement_score = st.session_state.get(
         "placement_score",
         0.0
@@ -276,27 +297,39 @@ if page == "🏠 Home":
     # -------------------------------------------------
     st.subheader("🎯 Current Performance")
 
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
 
     with col1:
         st.metric(
-            "Resume ATS",
+            "Basic ATS",
             f"{ats_score:.1f}%"
         )
 
     with col2:
         st.metric(
+            "Advanced ATS",
+            f"{advanced_ats_score:.1f}%"
+        )
+
+    with col3:
+        st.metric(
             "Job Match",
             f"{match_score:.1f}%"
         )
 
-    with col3:
+    with col4:
+        st.metric(
+            "AI Job Fit",
+            f"{job_fit_score:.1f}%"
+        )
+
+    with col5:
         st.metric(
             "Interview",
             f"{interview_score:.1f}%"
         )
 
-    with col4:
+    with col6:
         st.metric(
             "Placement",
             f"{placement_score:.1f}/100"
@@ -337,8 +370,10 @@ if page == "🏠 Home":
     st.subheader("📈 Progress Overview")
 
     progress_items = {
-        "Resume ATS": ats_score,
+        "Basic ATS": ats_score,
+        "Advanced ATS": advanced_ats_score,
         "Job Match": match_score,
+        "AI Job Fit": job_fit_score,
         "Interview": interview_score,
         "Placement Readiness": placement_score
     }
@@ -695,41 +730,185 @@ if page == "📄 Resume Analyzer":
             st.write(
                 f"Match Score: {match_score:.2f}%"
             )
-            # -------------------------------------------------
-# AI JOB FIT SCORE ENGINE
-# -------------------------------------------------
-if job_description.strip():
 
-    st.markdown("---")
+        # -------------------------------------------------
+        # ADVANCED ATS ANALYZER
+        # -------------------------------------------------
+        if job_description.strip():
 
-    st.subheader(
-        "🎯 AI Job Fit Score"
-    )
+            st.markdown("---")
 
-    st.write(
-        "Compare your resume with this specific job description "
-        "using AI-powered analysis."
-    )
+            st.subheader("📊 Advanced ATS Analyzer")
 
-    if st.button(
-        "🎯 Calculate Intelligent Job Fit",
-        key="calculate_job_fit"
-    ):
-
-        if client is None:
-
-            st.error(
-                "Groq API key is not configured. "
-                "Please check Streamlit Secrets."
+            st.write(
+                "Analyze your resume against the target job description "
+                "using AI-powered ATS evaluation."
             )
 
-        else:
-
-            with st.spinner(
-                "Comparing your resume with the job description..."
+            if st.button(
+                "🚀 Run Advanced ATS Analysis",
+                key="advanced_ats_analysis"
             ):
 
-                job_fit_prompt = f"""
+                if client is None:
+                    st.error(
+                        "Groq API key is not configured. "
+                        "Please check Streamlit Secrets."
+                    )
+                else:
+                    with st.spinner(
+                        "Analyzing resume structure, keywords, skills, and relevance..."
+                    ):
+
+                        advanced_ats_prompt = f"""
+You are an expert ATS consultant and technical recruiter.
+
+Analyze the student's resume against the target job description.
+
+TARGET JOB DESCRIPTION:
+{job_description}
+
+STUDENT RESUME:
+{text}
+
+Calculate an AI-assisted ATS score from 0 to 100.
+
+Evaluate:
+1. Keyword alignment
+2. Required skills match
+3. Resume section completeness
+4. Job relevance
+5. Project and experience evidence
+6. ATS readability based only on extracted text
+7. Important keyword gaps
+
+Rules:
+- Use only evidence present in the provided resume and job description.
+- Do not invent experience, qualifications, skills, or projects.
+- This is an AI-assisted estimate, not a guaranteed ATS result.
+- Give more importance to required skills and important job keywords.
+
+Your response MUST start with exactly:
+
+ADVANCED ATS SCORE: X
+
+Where X is a number from 0 to 100.
+
+Then provide exactly these sections:
+
+1. KEYWORD ALIGNMENT
+2. REQUIRED SKILLS MATCH
+3. RESUME SECTION CHECK
+4. JOB RELEVANCE
+5. ATS STRENGTHS
+6. ATS RISKS
+7. TOP KEYWORD GAPS
+8. ACTION PLAN
+
+In RESUME SECTION CHECK evaluate:
+Contact Information
+Summary/Profile
+Education
+Skills
+Projects
+Experience/Internships
+Certifications
+
+Keep the response practical and suitable for a college student.
+"""
+
+                        try:
+                            response = client.chat.completions.create(
+                                model="openai/gpt-oss-20b",
+                                messages=[
+                                    {
+                                        "role": "user",
+                                        "content": advanced_ats_prompt
+                                    }
+                                ]
+                            )
+
+                            advanced_ats_result = (
+                                response.choices[0].message.content
+                            )
+
+                            ats_match = re.search(
+                                r"ADVANCED\s*ATS\s*SCORE\s*:\s*"
+                                r"(100(?:\.0)?|[0-9]{1,2}(?:\.[0-9])?)",
+                                advanced_ats_result,
+                                re.IGNORECASE
+                            )
+
+                            if ats_match:
+                                advanced_ats_score = max(
+                                    0.0,
+                                    min(float(ats_match.group(1)), 100.0)
+                                )
+
+                                st.session_state["advanced_ats_score"] = advanced_ats_score
+                                st.session_state["advanced_ats_result"] = advanced_ats_result
+
+                                st.subheader("🏆 Advanced ATS Result")
+
+                                ats_c1, ats_c2 = st.columns(2)
+
+                                with ats_c1:
+                                    st.metric(
+                                        "Advanced ATS Score",
+                                        f"{advanced_ats_score:.1f}%"
+                                    )
+
+                                with ats_c2:
+                                    if advanced_ats_score >= 80:
+                                        ats_status = "Strong 🟢"
+                                    elif advanced_ats_score >= 60:
+                                        ats_status = "Moderate 🟡"
+                                    else:
+                                        ats_status = "Needs Improvement 🔴"
+
+                                    st.metric("ATS Status", ats_status)
+
+                                st.progress(int(advanced_ats_score))
+                                st.subheader("🧠 Advanced ATS Analysis")
+                                st.write(advanced_ats_result)
+                            else:
+                                st.warning(
+                                    "The AI response was generated, but a valid Advanced ATS score was not found."
+                                )
+                                st.write(advanced_ats_result)
+
+                        except Exception as e:
+                            st.error(f"Advanced ATS analysis failed: {e}")
+
+        # -------------------------------------------------
+        # AI JOB FIT SCORE ENGINE
+        # -------------------------------------------------
+        if job_description.strip():
+
+            st.markdown("---")
+            st.subheader("🎯 AI Job Fit Score")
+
+            st.write(
+                "Compare your resume with this specific job description "
+                "using AI-powered analysis."
+            )
+
+            if st.button(
+                "🎯 Calculate Intelligent Job Fit",
+                key="calculate_job_fit"
+            ):
+
+                if client is None:
+                    st.error(
+                        "Groq API key is not configured. "
+                        "Please check Streamlit Secrets."
+                    )
+                else:
+                    with st.spinner(
+                        "Comparing your resume with the job description..."
+                    ):
+
+                        job_fit_prompt = f"""
 You are an expert ATS analyst and technical recruiter.
 
 Compare the student's resume with the target job description.
@@ -742,20 +921,8 @@ STUDENT RESUME:
 
 Give an AI-assisted estimate of how well this resume fits this specific job.
 
-Evaluate:
-- Required technical skills
-- Tools and technologies
-- Responsibilities
-- Projects and experience
-- Education requirements
-- Important keywords
-- Overall relevance
-
-Important rules:
-- Use only evidence present in the resume and job description.
-- Do not invent skills, projects, qualifications, or experience.
-- The score is an AI-assisted estimate, not a guaranteed hiring decision.
-- Consider the importance of requirements, not just the number of keywords.
+Use only evidence present in the resume and job description.
+Do not invent skills, experience, qualifications, or projects.
 
 Your response MUST start with exactly:
 
@@ -765,139 +932,81 @@ FIT LEVEL: Y
 Where X is a number from 0 to 100 and Y is exactly one of:
 Excellent, Strong, Moderate, Low, Poor.
 
-Then provide exactly these sections:
+Then provide exactly:
 
 1. MATCHING SKILLS
-List the important job skills that are supported by the student's resume.
-
 2. MISSING SKILLS
-List important job requirements that are not clearly supported by the student's resume.
-
 3. PRIORITY SKILLS
-List the top 5 missing skills the student should learn first for this role.
-
 4. EVIDENCE
-Briefly explain the strongest matches and most important gaps that influenced the score.
-
 5. FINAL RECOMMENDATION
-Give practical advice for improving the resume and preparation for this specific job.
 
-Keep the response realistic, clear, and suitable for a college student.
+Keep it practical, realistic, and suitable for a college student.
 """
 
-                try:
-
-                    response = client.chat.completions.create(
-                        model="openai/gpt-oss-20b",
-                        messages=[
-                            {
-                                "role": "user",
-                                "content": job_fit_prompt
-                            }
-                        ]
-                    )
-
-                    job_fit_result = (
-                        response
-                        .choices[0]
-                        .message
-                        .content
-                    )
-
-                    fit_match = re.search(
-                        r"JOB\s*FIT\s*SCORE\s*:"
-                        r"\s*(100(?:\.0)?|[0-9]{1,2}(?:\.[0-9])?)",
-                        job_fit_result,
-                        re.IGNORECASE
-                    )
-
-                    if fit_match:
-
-                        job_fit_score = float(
-                            fit_match.group(1)
-                        )
-
-                        job_fit_score = max(
-                            0.0,
-                            min(
-                                job_fit_score,
-                                100.0
-                            )
-                        )
-
-                        st.session_state[
-                            "job_fit_score"
-                        ] = job_fit_score
-
-                        fit_level_match = re.search(
-                            r"FIT\s*LEVEL\s*:"
-                            r"\s*(Excellent|Strong|Moderate|Low|Poor)",
-                            job_fit_result,
-                            re.IGNORECASE
-                        )
-
-                        fit_level = (
-                            fit_level_match.group(1).title()
-                            if fit_level_match
-                            else "Not specified"
-                        )
-
-                        st.subheader(
-                            "📊 Job Fit Result"
-                        )
-
-                        fit_col1, fit_col2 = st.columns(2)
-
-                        with fit_col1:
-                            st.metric(
-                                "AI Job Fit Score",
-                                f"{job_fit_score:.1f}%"
+                        try:
+                            response = client.chat.completions.create(
+                                model="openai/gpt-oss-20b",
+                                messages=[
+                                    {
+                                        "role": "user",
+                                        "content": job_fit_prompt
+                                    }
+                                ]
                             )
 
-                        with fit_col2:
-                            st.metric(
-                                "Fit Level",
-                                fit_level
+                            job_fit_result = response.choices[0].message.content
+
+                            fit_match = re.search(
+                                r"JOB\s*FIT\s*SCORE\s*:\s*"
+                                r"(100(?:\.0)?|[0-9]{1,2}(?:\.[0-9])?)",
+                                job_fit_result,
+                                re.IGNORECASE
                             )
 
-                        st.progress(
-                            min(
-                                max(
-                                    int(job_fit_score),
-                                    0
-                                ),
-                                100
-                            )
-                        )
+                            if fit_match:
+                                job_fit_score = max(
+                                    0.0,
+                                    min(float(fit_match.group(1)), 100.0)
+                                )
 
-                        st.subheader(
-                            "🧠 AI Job Fit Analysis"
-                        )
+                                st.session_state["job_fit_score"] = job_fit_score
 
-                        st.write(
-                            job_fit_result
-                        )
+                                fit_level_match = re.search(
+                                    r"FIT\s*LEVEL\s*:\s*"
+                                    r"(Excellent|Strong|Moderate|Low|Poor)",
+                                    job_fit_result,
+                                    re.IGNORECASE
+                                )
 
-                    else:
+                                fit_level = (
+                                    fit_level_match.group(1).title()
+                                    if fit_level_match else "Not specified"
+                                )
 
-                        st.warning(
-                            "The AI response was generated, "
-                            "but a valid Job Fit Score was not found."
-                        )
+                                st.subheader("📊 Job Fit Result")
+                                fit_c1, fit_c2 = st.columns(2)
 
-                        st.subheader(
-                            "🧠 AI Job Fit Analysis"
-                        )
+                                with fit_c1:
+                                    st.metric(
+                                        "AI Job Fit Score",
+                                        f"{job_fit_score:.1f}%"
+                                    )
 
-                        st.write(
-                            job_fit_result
-                        )
+                                with fit_c2:
+                                    st.metric("Fit Level", fit_level)
 
-                except Exception as e:
+                                st.progress(int(job_fit_score))
+                                st.subheader("🧠 AI Job Fit Analysis")
+                                st.write(job_fit_result)
 
-                    st.error(
-                        f"Job Fit analysis failed: {e}"
-                    )
+                            else:
+                                st.warning(
+                                    "The AI response was generated, but a valid Job Fit Score was not found."
+                                )
+                                st.write(job_fit_result)
+
+                        except Exception as e:
+                            st.error(f"Job Fit analysis failed: {e}")
 
         # -------------------------------------------------
         # DOWNLOAD REPORT
@@ -926,110 +1035,82 @@ Missing Skills:
         )
 
         # -------------------------------------------------
-# AI FEEDBACK
-# -------------------------------------------------
-st.subheader(
-    "🤖 AI Resume Feedback"
-)
-
-if st.button(
-    "✨ Generate AI Feedback",
-    key="resume_ai_feedback"
-):
-
-    if client is None:
-
-        st.error(
-            "Groq API key is not configured. "
-            "Please check .streamlit/secrets.toml."
+        # AI FEEDBACK
+        # -------------------------------------------------
+        st.subheader(
+            "🤖 AI Resume Feedback"
         )
 
-    elif not text.strip():
-
-        st.warning(
-            "No resume text is available. "
-            "Please upload your resume again."
-        )
-
-    else:
-
-        with st.spinner(
-            "🤖 AI is analyzing your resume..."
+        if st.button(
+            "✨ Generate AI Feedback",
+            key="resume_ai_feedback"
         ):
 
-            feedback_prompt = f"""
-You are an expert resume reviewer and placement mentor.
-
-Analyze the following college student's resume.
-
-RESUME:
-{text}
-
-Provide a practical and student-friendly analysis with these sections:
-
-1. STRENGTHS
-Identify the strongest parts of the resume.
-
-2. WEAKNESSES
-Identify important areas that need improvement.
-
-3. MISSING SKILLS
-Identify useful technical or professional skills that are missing
-or not clearly demonstrated.
-
-4. RESUME IMPROVEMENTS
-Give specific suggestions to improve the resume.
-
-5. ATS OPTIMIZATION
-Suggest ways to make the resume more ATS-friendly.
-
-6. RECOMMENDED JOB ROLES
-Suggest suitable entry-level roles based on the resume.
-
-Do not invent qualifications or experience.
-Keep the recommendations realistic for a college student.
-"""
-
-            try:
-
-                response = client.chat.completions.create(
-                    model="openai/gpt-oss-20b",
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": feedback_prompt
-                        }
-                    ]
-                )
-
-                feedback = response.choices[0].message.content
-
-                if feedback and feedback.strip():
-
-                    st.success(
-                        "✅ AI Resume Feedback Generated"
-                    )
-
-                    st.markdown(
-                        "### 🧠 AI Resume Analysis"
-                    )
-
-                    st.write(
-                        feedback
-                    )
-
-                else:
-
-                    st.warning(
-                        "The AI returned an empty response. "
-                        "Please try again."
-                    )
-
-            except Exception as e:
+            if client is None:
 
                 st.error(
-                    f"❌ AI Resume Feedback failed: {e}"
+                    "Groq API key is not configured. "
+                    "Please check Streamlit Secrets."
                 )
+
+            else:
+
+                with st.spinner(
+                    "Analyzing your resume..."
+                ):
+
+                    prompt = f"""
+You are an expert resume reviewer helping a college student
+prepare for internships and placements.
+
+Analyze this resume and provide:
+
+1. Strengths
+2. Weaknesses
+3. Missing Skills
+4. Suggestions for Improvement
+5. ATS Optimization Tips
+6. Recommended Job Roles
+
+Be practical, clear, and student-friendly.
+
+Resume:
+
+{text}
+"""
+
+                    try:
+
+                        response = client.chat.completions.create(
+                            model="openai/gpt-oss-20b",
+                            messages=[
+                                {
+                                    "role": "user",
+                                    "content": prompt
+                                }
+                            ]
+                        )
+
+                        feedback = (
+                            response
+                            .choices[0]
+                            .message
+                            .content
+                        )
+
+                        st.markdown(
+                            "### 🧠 AI Analysis"
+                        )
+
+                        st.write(
+                            feedback
+                        )
+
+                    except Exception as e:
+
+                        st.error(
+                            f"AI analysis failed: {e}"
+                        )
 
 
 # =========================================================
@@ -1385,6 +1466,16 @@ elif page == "🎯 Placement Readiness":
         0.0
     )
 
+    job_fit_score = st.session_state.get(
+        "job_fit_score",
+        0.0
+    )
+
+    advanced_ats_score = st.session_state.get(
+        "advanced_ats_score",
+        0.0
+    )
+
     found_skills = st.session_state.get(
         "found_skills",
         []
@@ -1431,6 +1522,20 @@ elif page == "🎯 Placement Readiness":
         st.info(
             "🎯 Add a job description in Resume Analyzer "
             "to load the Job Match score."
+        )
+
+    if advanced_ats_score == 0:
+
+        st.info(
+            "📊 Run Advanced ATS Analysis in Resume Analyzer "
+            "to load the advanced ATS score."
+        )
+
+    if job_fit_score == 0:
+
+        st.info(
+            "🎯 Calculate the AI Job Fit Score in Resume Analyzer "
+            "to load the intelligent job-fit assessment."
         )
 
     if interview_score == 0:
@@ -1625,13 +1730,23 @@ Make the recommendations realistic for a college student.
                 cgpa / 10
             ) * 100
 
-            technical_skill_score = ats_score
+            technical_skill_score = (
+                advanced_ats_score
+                if advanced_ats_score > 0
+                else ats_score
+            )
+
+            job_fit_component = (
+                job_fit_score
+                if job_fit_score > 0
+                else match_score
+            )
 
             placement_score = (
                 cgpa_score * 0.15
                 + technical_skill_score * 0.25
                 + interview_score * 0.20
-                + match_score * 0.10
+                + job_fit_component * 0.10
                 + project_score * 0.10
                 + certification_score * 0.05
                 + communication_score * 0.15
@@ -1706,9 +1821,9 @@ Make the recommendations realistic for a college student.
 
             categories = {
                 "Academic": cgpa_score,
-                "Resume / Technical": technical_skill_score,
+                "Advanced ATS / Technical": technical_skill_score,
                 "Interview": interview_score,
-                "Job Match": match_score,
+                "AI Job Fit": job_fit_component,
                 "Projects": project_score,
                 "Certifications": certification_score,
                 "Communication": communication_score
@@ -1793,6 +1908,12 @@ Interview Performance:
 
 Job Match Score:
 {match_score:.1f}/100
+
+Advanced ATS Score:
+{advanced_ats_score:.1f}/100
+
+AI Job Fit Score:
+{job_fit_score:.1f}/100
 
 Project Strength:
 {project_score}/100
