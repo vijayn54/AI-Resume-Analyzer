@@ -58,6 +58,12 @@ if "advanced_ats_score" not in st.session_state:
 if "advanced_ats_result" not in st.session_state:
     st.session_state["advanced_ats_result"] = ""
 
+if "job_fit_result" not in st.session_state:
+    st.session_state["job_fit_result"] = ""
+
+if "resume_feedback" not in st.session_state:
+    st.session_state["resume_feedback"] = ""
+
 
 # =========================================================
 # PREMIUM UNIVERSITY UI
@@ -847,30 +853,6 @@ Keep the response practical and suitable for a college student.
 
                                 st.session_state["advanced_ats_score"] = advanced_ats_score
                                 st.session_state["advanced_ats_result"] = advanced_ats_result
-
-                                st.subheader("🏆 Advanced ATS Result")
-
-                                ats_c1, ats_c2 = st.columns(2)
-
-                                with ats_c1:
-                                    st.metric(
-                                        "Advanced ATS Score",
-                                        f"{advanced_ats_score:.1f}%"
-                                    )
-
-                                with ats_c2:
-                                    if advanced_ats_score >= 80:
-                                        ats_status = "Strong 🟢"
-                                    elif advanced_ats_score >= 60:
-                                        ats_status = "Moderate 🟡"
-                                    else:
-                                        ats_status = "Needs Improvement 🔴"
-
-                                    st.metric("ATS Status", ats_status)
-
-                                st.progress(int(advanced_ats_score))
-                                st.subheader("🧠 Advanced ATS Analysis")
-                                st.write(advanced_ats_result)
                             else:
                                 st.warning(
                                     "The AI response was generated, but a valid Advanced ATS score was not found."
@@ -879,6 +861,57 @@ Keep the response practical and suitable for a college student.
 
                         except Exception as e:
                             st.error(f"Advanced ATS analysis failed: {e}")
+
+        # -------------------------------------------------
+        # ADVANCED ATS RESULT DISPLAY
+        # -------------------------------------------------
+        saved_ats_result = st.session_state.get(
+            "advanced_ats_result",
+            ""
+        )
+        saved_ats_score = st.session_state.get(
+            "advanced_ats_score",
+            0.0
+        )
+
+        if saved_ats_result:
+
+            st.subheader("🏆 Advanced ATS Result")
+
+            ats_c1, ats_c2 = st.columns(2)
+
+            with ats_c1:
+                st.metric(
+                    "Advanced ATS Score",
+                    f"{saved_ats_score:.1f}%"
+                )
+
+            with ats_c2:
+                if saved_ats_score >= 80:
+                    ats_status = "Strong 🟢"
+                elif saved_ats_score >= 60:
+                    ats_status = "Moderate 🟡"
+                else:
+                    ats_status = "Needs Improvement 🔴"
+
+                st.metric(
+                    "ATS Status",
+                    ats_status
+                )
+
+            st.progress(
+                min(
+                    max(
+                        int(saved_ats_score),
+                        0
+                    ),
+                    100
+                )
+            )
+
+            st.subheader("🧠 Advanced ATS Analysis")
+            st.write(saved_ats_result)
+
 
         # -------------------------------------------------
         # AI JOB FIT SCORE ENGINE
@@ -970,34 +1003,7 @@ Keep it practical, realistic, and suitable for a college student.
                                 )
 
                                 st.session_state["job_fit_score"] = job_fit_score
-
-                                fit_level_match = re.search(
-                                    r"FIT\s*LEVEL\s*:\s*"
-                                    r"(Excellent|Strong|Moderate|Low|Poor)",
-                                    job_fit_result,
-                                    re.IGNORECASE
-                                )
-
-                                fit_level = (
-                                    fit_level_match.group(1).title()
-                                    if fit_level_match else "Not specified"
-                                )
-
-                                st.subheader("📊 Job Fit Result")
-                                fit_c1, fit_c2 = st.columns(2)
-
-                                with fit_c1:
-                                    st.metric(
-                                        "AI Job Fit Score",
-                                        f"{job_fit_score:.1f}%"
-                                    )
-
-                                with fit_c2:
-                                    st.metric("Fit Level", fit_level)
-
-                                st.progress(int(job_fit_score))
-                                st.subheader("🧠 AI Job Fit Analysis")
-                                st.write(job_fit_result)
+                                st.session_state["job_fit_result"] = job_fit_result
 
                             else:
                                 st.warning(
@@ -1007,6 +1013,76 @@ Keep it practical, realistic, and suitable for a college student.
 
                         except Exception as e:
                             st.error(f"Job Fit analysis failed: {e}")
+
+        # -------------------------------------------------
+        # AI JOB FIT RESULT DISPLAY
+        # -------------------------------------------------
+        saved_fit_result = st.session_state.get(
+            "job_fit_result",
+            ""
+        )
+        saved_fit_score = st.session_state.get(
+            "job_fit_score",
+            0.0
+        )
+
+        if saved_fit_result:
+
+            st.subheader("📊 Job Fit Result")
+
+            fit_level_match = re.search(
+                r"FIT\s*LEVEL\s*:\s*"
+                r"(Excellent|Strong|Moderate|Low|Poor)",
+                saved_fit_result,
+                re.IGNORECASE
+            )
+
+            fit_level = (
+                fit_level_match.group(1).title()
+                if fit_level_match
+                else "Not specified"
+            )
+
+            fit_c1, fit_c2 = st.columns(2)
+
+            with fit_c1:
+                st.metric(
+                    "AI Job Fit Score",
+                    f"{saved_fit_score:.1f}%"
+                )
+
+            with fit_c2:
+                st.metric(
+                    "Fit Level",
+                    fit_level
+                )
+
+            st.progress(
+                min(
+                    max(
+                        int(saved_fit_score),
+                        0
+                    ),
+                    100
+                )
+            )
+
+            st.subheader("🧠 AI Job Fit Analysis")
+            st.write(saved_fit_result)
+
+        # -------------------------------------------------
+        # AI RESUME FEEDBACK RESULT DISPLAY
+        # -------------------------------------------------
+        saved_feedback = st.session_state.get(
+            "resume_feedback",
+            ""
+        )
+
+        if saved_feedback:
+
+            st.subheader("🧠 AI Resume Feedback Result")
+            st.write(saved_feedback)
+
 
         # -------------------------------------------------
         # DOWNLOAD REPORT
@@ -1098,13 +1174,7 @@ Resume:
                             .content
                         )
 
-                        st.markdown(
-                            "### 🧠 AI Analysis"
-                        )
-
-                        st.write(
-                            feedback
-                        )
+                        st.session_state["resume_feedback"] = feedback
 
                     except Exception as e:
 
