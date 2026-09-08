@@ -64,6 +64,28 @@ if "job_fit_result" not in st.session_state:
 if "resume_feedback" not in st.session_state:
     st.session_state["resume_feedback"] = ""
 
+# Multi-question AI interview simulator state
+if "multi_interview_questions" not in st.session_state:
+    st.session_state["multi_interview_questions"] = []
+
+if "multi_interview_index" not in st.session_state:
+    st.session_state["multi_interview_index"] = 0
+
+if "multi_interview_scores" not in st.session_state:
+    st.session_state["multi_interview_scores"] = []
+
+if "multi_interview_evaluations" not in st.session_state:
+    st.session_state["multi_interview_evaluations"] = []
+
+if "multi_interview_active" not in st.session_state:
+    st.session_state["multi_interview_active"] = False
+
+if "multi_interview_role" not in st.session_state:
+    st.session_state["multi_interview_role"] = ""
+
+if "multi_interview_type" not in st.session_state:
+    st.session_state["multi_interview_type"] = ""
+
 
 # =========================================================
 # PREMIUM UNIVERSITY UI
@@ -218,6 +240,7 @@ st.sidebar.markdown(
     ✅ AI Job Fit Score  
     ✅ AI Resume Feedback  
     ✅ Interview Preparation  
+    ✅ Multi-Question AI Mock Interview  
     ✅ Placement Readiness  
     ✅ Skill Gap Analysis
     """
@@ -1337,31 +1360,369 @@ Keep the language clear and student-friendly.
                     )
 
     # =================================================
-    # MOCK INTERVIEW
+    # MULTI-QUESTION AI MOCK INTERVIEW
     # =================================================
 
     st.markdown("---")
 
-    st.subheader(
-        "🎤 Mock Interview"
-    )
+    st.subheader("🎤 Multi-Question AI Mock Interview")
 
     st.write(
-        "Practice answering an interview question and "
-        "get an AI evaluation."
+        "Complete a realistic interview one question at a time. "
+        "AI will score every answer and calculate your overall interview performance."
+    )
+
+    # -------------------------------------------------
+    # START / RESET INTERVIEW
+    # -------------------------------------------------
+    if st.button(
+        "🚀 Start AI Mock Interview",
+        key="start_multi_interview"
+    ):
+
+        if not target_role.strip():
+            st.warning("Please enter your target job role first.")
+
+        elif client is None:
+            st.error(
+                "Groq API key is not configured. "
+                "Please check Streamlit Secrets."
+            )
+
+        else:
+            with st.spinner("Creating your personalized mock interview..."):
+
+                skills_for_prompt = ", ".join(
+                    st.session_state.get("found_skills", [])
+                ) or "No tracked skills detected yet"
+
+                interview_prompt = f"""
+You are an expert technical interviewer helping a college student prepare for placements.
+
+Create exactly {number_of_questions} realistic interview questions for:
+Target Role: {target_role}
+Interview Type: {interview_type}
+Student Skills: {skills_for_prompt}
+
+Rules:
+- Make the questions suitable for a college student.
+- Mix conceptual, practical, and role-specific questions where appropriate.
+- Do not provide answers.
+- Return ONLY the questions.
+- Use exactly this format, one question per line:
+Q1: question text
+Q2: question text
+Q3: question text
+...
+"""
+
+                try:
+                    response = client.chat.completions.create(
+                        model="openai/gpt-oss-20b",
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": interview_prompt
+                            }
+                        ]
+                    )
+
+                    raw_questions = response.choices[0].message.content
+
+                    parsed_questions = re.findall(
+                        r"(?:^|\n)\s*Q\d+\s*:\s*(.+)",
+                        raw_questions,
+                        re.IGNORECASE
+                    )
+
+                    parsed_questions = [
+                        q.strip()
+                        for q in parsed_questions
+                        if q.strip()
+                    ]
+
+                    if len(parsed_questions) < 3:
+                        st.error(
+                            "The AI did not return enough interview questions. "
+                            "Please try again."
+                        )
+                    else:
+                        parsed_questions = parsed_questions[:number_of_questions]
+
+                        st.session_state["multi_interview_questions"] = parsed_questions
+                        st.session_state["multi_interview_index"] = 0
+                        st.session_state["multi_interview_scores"] = []
+                        st.session_state["multi_interview_evaluations"] = []
+                        st.session_state["multi_interview_active"] = True
+                        st.session_state["multi_interview_role"] = target_role
+                        st.session_state["multi_interview_type"] = interview_type
+
+                        st.success(
+                            f"✅ Mock interview started with {len(parsed_questions)} questions."
+                        )
+
+                except Exception as e:
+                    st.error(f"AI mock interview generation failed: {e}")
+
+    # -------------------------------------------------
+    # ACTIVE INTERVIEW
+    # -------------------------------------------------
+    interview_questions = st.session_state.get(
+        "multi_interview_questions",
+        []
+    )
+
+    current_index = st.session_state.get(
+        "multi_interview_index",
+        0
+    )
+
+    interview_scores = st.session_state.get(
+        "multi_interview_scores",
+        []
+    )
+
+    interview_evaluations = st.session_state.get(
+        "multi_interview_evaluations",
+        []
+    )
+
+    interview_active = st.session_state.get(
+        "multi_interview_active",
+        False
+    )
+
+    if interview_active and interview_questions:
+
+        # Completed interview
+        if current_index >= len(interview_questions):
+
+            overall_score = (
+                sum(interview_scores) / len(interview_scores)
+                if interview_scores
+                else 0.0
+            )
+
+            st.success("🎉 Mock interview completed!")
+
+            st.subheader("🏆 Overall Interview Result")
+
+            result_col1, result_col2, result_col3 = st.columns(3)
+
+            with result_col1:
+                st.metric(
+                    "Overall Interview Score",
+                    f"{overall_score:.1f}/100"
+                )
+
+            with result_col2:
+                st.metric(
+                    "Questions Completed",
+                    len(interview_scores)
+                )
+
+            with result_col3:
+                if overall_score >= 80:
+                    readiness = "Excellent 🟢"
+                elif overall_score >= 60:
+                    readiness = "Good 🟡"
+                else:
+                    readiness = "Needs Practice 🔴"
+
+                st.metric(
+                    "Interview Readiness",
+                    readiness
+                )
+
+            st.progress(
+                min(max(int(overall_score), 0), 100)
+            )
+
+            st.subheader("📊 Question-wise Scores")
+
+            for idx, score in enumerate(interview_scores):
+                st.write(
+                    f"**Question {idx + 1}: {score:.1f}/100**"
+                )
+                st.progress(
+                    min(max(int(score), 0), 100)
+                )
+
+            st.subheader("🧠 Interview Feedback")
+            for idx, evaluation in enumerate(interview_evaluations):
+                with st.expander(f"Question {idx + 1} Evaluation"):
+                    st.write(evaluation)
+
+            # Connect the simulator result to Placement Readiness.
+            st.session_state["interview_score"] = overall_score
+
+            if st.button(
+                "🔄 Start New Mock Interview",
+                key="restart_multi_interview"
+            ):
+                st.session_state["multi_interview_questions"] = []
+                st.session_state["multi_interview_index"] = 0
+                st.session_state["multi_interview_scores"] = []
+                st.session_state["multi_interview_evaluations"] = []
+                st.session_state["multi_interview_active"] = False
+                st.rerun()
+
+        else:
+
+            total_questions = len(interview_questions)
+            question_number = current_index + 1
+            current_question = interview_questions[current_index]
+
+            st.info(
+                f"Question {question_number} of {total_questions} • "
+                f"{st.session_state.get('multi_interview_type', interview_type)}"
+            )
+
+            st.progress(
+                current_index / total_questions
+            )
+
+            st.subheader(f"❓ Question {question_number}")
+            st.markdown(
+                f"### {current_question}"
+            )
+
+            answer = st.text_area(
+                "✍️ Your Answer",
+                height=220,
+                placeholder="Type your answer as you would in a real interview...",
+                key=f"multi_interview_answer_{current_index}"
+            )
+
+            if st.button(
+                "🧠 Submit Answer & Continue",
+                key=f"submit_multi_answer_{current_index}"
+            ):
+
+                if not answer.strip():
+                    st.warning("Please enter your answer before continuing.")
+
+                elif client is None:
+                    st.error("Groq API key is not configured.")
+
+                else:
+                    with st.spinner("AI is evaluating your answer..."):
+
+                        evaluation_prompt = f"""
+You are an expert placement interviewer.
+
+Target Role:
+{st.session_state.get('multi_interview_role', target_role)}
+
+Interview Question:
+{current_question}
+
+Student Answer:
+{answer}
+
+Evaluate the answer fairly for a college placement interview.
+
+Your response MUST start with exactly:
+SCORE: X
+
+Where X is a number from 0 to 10.
+
+Then provide exactly these sections:
+1. WHAT YOU DID WELL
+2. WHAT COULD BE IMPROVED
+3. IMPORTANT POINTS MISSED
+4. BETTER ANSWER APPROACH
+5. PRACTICAL TIP
+
+Be encouraging, honest, and specific. Do not invent facts about the student.
+"""
+
+                        try:
+                            response = client.chat.completions.create(
+                                model="openai/gpt-oss-20b",
+                                messages=[
+                                    {
+                                        "role": "user",
+                                        "content": evaluation_prompt
+                                    }
+                                ]
+                            )
+
+                            evaluation = response.choices[0].message.content
+
+                            score_match = re.search(
+                                r"SCORE\s*:\s*(10(?:\.0)?|[0-9](?:\.[0-9])?)",
+                                evaluation,
+                                re.IGNORECASE
+                            )
+
+                            if not score_match:
+                                st.warning(
+                                    "The AI evaluation did not return a valid score. "
+                                    "Please submit the answer again."
+                                )
+                            else:
+                                score_value = max(
+                                    0.0,
+                                    min(
+                                        float(score_match.group(1)),
+                                        10.0
+                                    )
+                                )
+
+                                score_100 = score_value * 10
+
+                                st.session_state["multi_interview_scores"].append(
+                                    score_100
+                                )
+
+                                st.session_state["multi_interview_evaluations"].append(
+                                    evaluation
+                                )
+
+                                st.session_state["multi_interview_index"] += 1
+
+                                # Keep the latest completed-answer score connected
+                                # to the existing Placement Readiness module.
+                                st.session_state["interview_score"] = (
+                                    sum(st.session_state["multi_interview_scores"])
+                                    / len(st.session_state["multi_interview_scores"])
+                                )
+
+                                st.rerun()
+
+                        except Exception as e:
+                            st.error(f"AI answer evaluation failed: {e}")
+
+            # Show the latest evaluation after moving to the next question.
+            if current_index > 0 and interview_evaluations:
+                with st.expander("📋 Previous Question Evaluation", expanded=False):
+                    st.write(interview_evaluations[-1])
+
+    # -------------------------------------------------
+    # EXISTING SINGLE-QUESTION MOCK INTERVIEW
+    # -------------------------------------------------
+
+    st.markdown("---")
+    st.subheader("📝 Quick Single-Question Practice")
+
+    st.write(
+        "Need a quick practice session? Evaluate one custom interview question below."
     )
 
     mock_question = st.text_area(
         "💬 Enter an interview question",
         placeholder=(
             "Example: Explain your AI Resume Analyzer project."
-        )
+        ),
+        key="quick_mock_question"
     )
 
     student_answer = st.text_area(
         "✍️ Your Answer",
         height=200,
-        placeholder="Type your answer here..."
+        placeholder="Type your answer here...",
+        key="quick_mock_answer"
     )
 
     if st.button(
@@ -1370,28 +1731,16 @@ Keep the language clear and student-friendly.
     ):
 
         if not mock_question.strip():
-
-            st.warning(
-                "Please enter an interview question."
-            )
+            st.warning("Please enter an interview question.")
 
         elif not student_answer.strip():
-
-            st.warning(
-                "Please enter your answer."
-            )
+            st.warning("Please enter your answer.")
 
         elif client is None:
-
-            st.error(
-                "Groq API key is not configured."
-            )
+            st.error("Groq API key is not configured.")
 
         else:
-
-            with st.spinner(
-                "AI is evaluating your answer..."
-            ):
+            with st.spinner("AI is evaluating your answer..."):
 
                 evaluation_prompt = f"""
 You are an expert interviewer evaluating a college student
@@ -1423,7 +1772,6 @@ Be encouraging, honest, and student-friendly.
 """
 
                 try:
-
                     response = client.chat.completions.create(
                         model="openai/gpt-oss-20b",
                         messages=[
@@ -1434,16 +1782,8 @@ Be encouraging, honest, and student-friendly.
                         ]
                     )
 
-                    evaluation = (
-                        response
-                        .choices[0]
-                        .message
-                        .content
-                    )
+                    evaluation = response.choices[0].message.content
 
-                    # -------------------------------------------------
-                    # EXTRACT INTERVIEW SCORE
-                    # -------------------------------------------------
                     score_match = re.search(
                         r"SCORE\s*:\s*(10(?:\.0)?|[0-9](?:\.[0-9])?)",
                         evaluation,
@@ -1451,52 +1791,26 @@ Be encouraging, honest, and student-friendly.
                     )
 
                     if score_match:
+                        score_value = float(score_match.group(1))
+                        score_value = max(0.0, min(score_value, 10.0))
+                        interview_score = score_value * 10
 
-                        score_value = float(
-                            score_match.group(1)
-                        )
-
-                        score_value = max(
-                            0.0,
-                            min(
-                                score_value,
-                                10.0
-                            )
-                        )
-
-                        interview_score = (
-                            score_value * 10
-                        )
-
-                        st.session_state[
-                            "interview_score"
-                        ] = interview_score
+                        st.session_state["interview_score"] = interview_score
 
                         st.metric(
                             "Interview Score",
                             f"{interview_score:.0f}/100"
                         )
-
                     else:
-
                         st.warning(
-                            "The AI response did not return "
-                            "a valid score."
+                            "The AI response did not return a valid score."
                         )
 
-                    st.subheader(
-                        "📊 AI Interview Evaluation"
-                    )
-
-                    st.write(
-                        evaluation
-                    )
+                    st.subheader("📊 AI Interview Evaluation")
+                    st.write(evaluation)
 
                 except Exception as e:
-
-                    st.error(
-                        f"AI evaluation failed: {e}"
-                    )
+                    st.error(f"AI evaluation failed: {e}")
 
 
 # =========================================================
@@ -2066,5 +2380,3 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-
-
