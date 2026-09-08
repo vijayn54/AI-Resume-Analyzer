@@ -86,6 +86,9 @@ if "multi_interview_role" not in st.session_state:
 if "multi_interview_type" not in st.session_state:
     st.session_state["multi_interview_type"] = ""
 
+if "career_recommendation_result" not in st.session_state:
+    st.session_state["career_recommendation_result"] = ""
+
 
 # =========================================================
 # PREMIUM UNIVERSITY UI
@@ -242,7 +245,8 @@ st.sidebar.markdown(
     ✅ Interview Preparation  
     ✅ Multi-Question AI Mock Interview  
     ✅ Placement Readiness  
-    ✅ Skill Gap Analysis
+    ✅ Skill Gap Analysis  
+    ✅ AI Career Role Recommendations
     """
 )
 
@@ -1094,20 +1098,6 @@ Keep it practical, realistic, and suitable for a college student.
             st.write(saved_fit_result)
 
         # -------------------------------------------------
-        # AI RESUME FEEDBACK RESULT DISPLAY
-        # -------------------------------------------------
-        saved_feedback = st.session_state.get(
-            "resume_feedback",
-            ""
-        )
-
-        if saved_feedback:
-
-            st.subheader("🧠 AI Resume Feedback Result")
-            st.write(saved_feedback)
-
-
-        # -------------------------------------------------
         # DOWNLOAD REPORT
         # -------------------------------------------------
         report = f"""
@@ -1204,6 +1194,20 @@ Resume:
                         st.error(
                             f"AI analysis failed: {e}"
                         )
+
+        # -------------------------------------------------
+        # AI RESUME FEEDBACK RESULT DISPLAY
+        # -------------------------------------------------
+        saved_feedback = st.session_state.get(
+            "resume_feedback",
+            ""
+        )
+
+        if saved_feedback:
+
+            st.markdown("---")
+            st.subheader("🧠 AI Resume Feedback Result")
+            st.write(saved_feedback)
 
 
 # =========================================================
@@ -1989,6 +1993,139 @@ elif page == "🎯 Placement Readiness":
     )
 
     # =================================================
+    # AI CAREER ROLE RECOMMENDATION ENGINE
+    # =================================================
+    st.markdown("---")
+
+    st.subheader("🎯 AI Career Role Recommendation")
+
+    st.write(
+        "Discover the career roles that best match your resume, skills, "
+        "interview performance, job fit, and placement readiness."
+    )
+
+    if st.button(
+        "🚀 Recommend Best Career Roles",
+        key="recommend_career_roles"
+    ):
+
+        if client is None:
+            st.error(
+                "Groq API key is not configured. "
+                "Please check Streamlit Secrets."
+            )
+
+        elif not found_skills:
+            st.warning(
+                "Please analyze your resume first so the AI can use your "
+                "current skills for career recommendations."
+            )
+
+        else:
+
+            with st.spinner("Analyzing your profile and recommending career roles..."):
+
+                current_placement_score = st.session_state.get(
+                    "placement_score",
+                    0.0
+                )
+
+                current_interview_score = st.session_state.get(
+                    "interview_score",
+                    0.0
+                )
+
+                current_job_fit_score = st.session_state.get(
+                    "job_fit_score",
+                    0.0
+                )
+
+                current_advanced_ats_score = st.session_state.get(
+                    "advanced_ats_score",
+                    0.0
+                )
+
+                recommendation_prompt = f"""
+You are an expert career counselor and campus placement strategist.
+
+Analyze the following college student's profile and recommend the 3 career roles
+that are the best fit for the student right now.
+
+STUDENT SKILLS:
+{", ".join(found_skills)}
+
+TARGET ROLE (if provided):
+{target_role if target_role.strip() else "Not specified"}
+
+ADVANCED ATS SCORE:
+{current_advanced_ats_score:.1f}/100
+
+AI JOB FIT SCORE:
+{current_job_fit_score:.1f}/100
+
+INTERVIEW SCORE:
+{current_interview_score:.1f}/100
+
+PLACEMENT READINESS SCORE:
+{current_placement_score:.1f}/100
+
+Recommend exactly 3 realistic roles suitable for a college student.
+Consider the student's current skills and evidence only. Do not assume skills
+that are not listed.
+
+For each role, provide exactly:
+1. ROLE: <career role>
+2. MATCH SCORE: <0-100>
+3. WHY IT FITS: <2-3 concise sentences>
+4. SKILLS YOU ALREADY HAVE: <skills from the student's list>
+5. SKILLS TO DEVELOP: <important missing skills>
+6. NEXT STEP: <one practical action>
+
+After the 3 roles, provide:
+7. TOP RECOMMENDATION: <best role>
+8. WHY THIS SHOULD BE THE FIRST CHOICE: <2-3 concise sentences>
+
+Keep the recommendations practical, honest, and suitable for campus placements.
+"""
+
+                try:
+                    response = client.chat.completions.create(
+                        model="openai/gpt-oss-20b",
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": recommendation_prompt
+                            }
+                        ]
+                    )
+
+                    career_recommendation_result = (
+                        response
+                        .choices[0]
+                        .message
+                        .content
+                    )
+
+                    st.session_state[
+                        "career_recommendation_result"
+                    ] = career_recommendation_result
+
+                except Exception as e:
+                    st.error(
+                        f"Career role recommendation failed: {e}"
+                    )
+
+    saved_career_recommendation = st.session_state.get(
+        "career_recommendation_result",
+        ""
+    )
+
+    if saved_career_recommendation:
+
+        st.subheader("🏆 Recommended Career Roles")
+        st.write(saved_career_recommendation)
+
+    # =================================================
     # SKILL GAP ANALYZER
     # =================================================
     st.markdown("---")
@@ -2380,3 +2517,5 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
+
