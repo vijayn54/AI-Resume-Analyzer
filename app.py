@@ -96,6 +96,19 @@ if "career_roadmap_result" not in st.session_state:
 if "progress_history" not in st.session_state:
     st.session_state["progress_history"] = []
 
+if "student_profile" not in st.session_state:
+    st.session_state["student_profile"] = {
+        "name": "",
+        "college": "",
+        "department": "",
+        "year": "3rd Year",
+        "cgpa": 0.0,
+        "target_role": "",
+        "location": "",
+        "skills": "",
+        "projects": ""
+    }
+
 
 
 # =========================================================
@@ -256,6 +269,7 @@ st.sidebar.markdown(
     ✅ Skill Gap Analysis  
     ✅ AI Career Role Recommendations
     ✅ Progress & History Dashboard
+    ✅ Student Profile
     """
 )
 
@@ -265,6 +279,7 @@ page = st.sidebar.radio(
     "Choose Module",
     [
         "🏠 Home",
+        "👤 Student Profile",
         "📄 Resume Analyzer",
         "🎤 Interview Preparation",
         "🎯 Placement Readiness"
@@ -273,9 +288,204 @@ page = st.sidebar.radio(
 
 
 # =========================================================
-# MODULE 0 - STUDENT DASHBOARD
+# MODULE 0 - STUDENT PROFILE
 # =========================================================
-if page == "🏠 Home":
+if page == "👤 Student Profile":
+
+    profile = st.session_state.get(
+        "student_profile",
+        {
+            "name": "",
+            "college": "",
+            "department": "",
+            "year": "3rd Year",
+            "cgpa": 0.0,
+            "target_role": "",
+            "location": "",
+            "skills": "",
+            "projects": ""
+        }
+    )
+
+    st.markdown(
+        """
+        <div class="hero">
+            <h1>👤 Student Profile</h1>
+            <h3>Your Career Identity in One Place</h3>
+            <p>
+                Save your academic details, career goal, skills, and projects
+                so Campus Companion can personalize your placement journey.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    st.markdown(
+        """
+        <div class="section-card">
+            <h3>📝 Profile Information</h3>
+            <p>
+                Keep this information updated. Your profile is currently
+                stored for this app session and will later be connected to
+                the SQLite database.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        profile_name = st.text_input(
+            "👨‍🎓 Student Name",
+            value=profile.get("name", ""),
+            placeholder="Example: Vijay"
+        )
+
+        profile_college = st.text_input(
+            "🏫 College",
+            value=profile.get("college", ""),
+            placeholder="Example: Chennai Institute of Technology"
+        )
+
+        profile_department = st.text_input(
+            "📚 Department / Branch",
+            value=profile.get("department", ""),
+            placeholder="Example: Artificial Intelligence & Data Science"
+        )
+
+        year_options = ["1st Year", "2nd Year", "3rd Year", "4th Year"]
+        saved_year = profile.get("year", "3rd Year")
+        year_index = (
+            year_options.index(saved_year)
+            if saved_year in year_options
+            else 2
+        )
+
+        profile_year = st.selectbox(
+            "🎓 Year of Study",
+            year_options,
+            index=year_index
+        )
+
+        profile_cgpa = st.number_input(
+            "📈 CGPA",
+            min_value=0.0,
+            max_value=10.0,
+            value=float(profile.get("cgpa", 0.0)),
+            step=0.1
+        )
+
+    with col2:
+        profile_target_role = st.text_input(
+            "💼 Target Job Role",
+            value=profile.get("target_role", ""),
+            placeholder="Example: Data Engineer"
+        )
+
+        profile_location = st.text_input(
+            "📍 Preferred Job Location",
+            value=profile.get("location", ""),
+            placeholder="Example: Chennai"
+        )
+
+        profile_skills = st.text_area(
+            "🧠 Key Skills",
+            value=profile.get("skills", ""),
+            height=120,
+            placeholder="Example: Python, SQL, Java, AWS"
+        )
+
+        profile_projects = st.text_area(
+            "🚀 Projects",
+            value=profile.get("projects", ""),
+            height=150,
+            placeholder="Example: AI Resume Analyzer, Sales Dashboard"
+        )
+
+    if st.button(
+        "💾 Save Student Profile",
+        key="save_student_profile"
+    ):
+        st.session_state["student_profile"] = {
+            "name": profile_name.strip(),
+            "college": profile_college.strip(),
+            "department": profile_department.strip(),
+            "year": profile_year,
+            "cgpa": float(profile_cgpa),
+            "target_role": profile_target_role.strip(),
+            "location": profile_location.strip(),
+            "skills": profile_skills.strip(),
+            "projects": profile_projects.strip()
+        }
+
+        st.success("✅ Student profile saved successfully!")
+        st.rerun()
+
+    saved_profile = st.session_state.get("student_profile", {})
+
+    if saved_profile.get("name") or saved_profile.get("target_role"):
+
+        st.markdown("---")
+        st.subheader("📋 Profile Summary")
+
+        summary_col1, summary_col2, summary_col3 = st.columns(3)
+
+        with summary_col1:
+            st.metric(
+                "Student",
+                saved_profile.get("name") or "Not set"
+            )
+
+        with summary_col2:
+            st.metric(
+                "Year",
+                saved_profile.get("year") or "Not set"
+            )
+
+        with summary_col3:
+            st.metric(
+                "CGPA",
+                f'{saved_profile.get("cgpa", 0.0):.1f}'
+            )
+
+        st.write(
+            "**🏫 College:** "
+            + (saved_profile.get("college") or "Not set")
+        )
+        st.write(
+            "**📚 Department:** "
+            + (saved_profile.get("department") or "Not set")
+        )
+        st.write(
+            "**💼 Target Role:** "
+            + (saved_profile.get("target_role") or "Not set")
+        )
+        st.write(
+            "**📍 Preferred Location:** "
+            + (saved_profile.get("location") or "Not set")
+        )
+        st.write(
+            "**🧠 Key Skills:** "
+            + (saved_profile.get("skills") or "Not set")
+        )
+        st.write(
+            "**🚀 Projects:** "
+            + (saved_profile.get("projects") or "Not set")
+        )
+
+        st.info(
+            "ℹ️ This profile is stored in the current Streamlit session. "
+            "SQLite persistence will be added in the next stage."
+        )
+
+
+# =========================================================
+# MODULE 1 - STUDENT DASHBOARD
+# =========================================================
+elif page == "🏠 Home":
 
     st.markdown(
         """
@@ -290,6 +500,33 @@ if page == "🏠 Home":
         """,
         unsafe_allow_html=True
     )
+
+    # -------------------------------------------------
+    # STUDENT PROFILE SNAPSHOT
+    # -------------------------------------------------
+    saved_profile = st.session_state.get("student_profile", {})
+
+    if saved_profile.get("name") or saved_profile.get("target_role"):
+        st.markdown("---")
+        st.subheader("👤 Student Profile Snapshot")
+
+        profile_col1, profile_col2, profile_col3, profile_col4 = st.columns(4)
+
+        with profile_col1:
+            st.write("**Student**")
+            st.write(saved_profile.get("name") or "Not set")
+
+        with profile_col2:
+            st.write("**Year**")
+            st.write(saved_profile.get("year") or "Not set")
+
+        with profile_col3:
+            st.write("**CGPA**")
+            st.write(f'{saved_profile.get("cgpa", 0.0):.1f}')
+
+        with profile_col4:
+            st.write("**Target Role**")
+            st.write(saved_profile.get("target_role") or "Not set")
 
     # -------------------------------------------------
     # CONNECTED SCORES
