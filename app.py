@@ -4,6 +4,7 @@ from PyPDF2 import PdfReader
 import matplotlib.pyplot as plt
 from groq import Groq
 import re
+import sqlite3
 from datetime import datetime
 
 
@@ -27,6 +28,101 @@ try:
     )
 except Exception:
     client = None
+
+
+# =========================================================
+# SQLITE DATABASE
+# =========================================================
+DB_FILE = "campus_companion.db"
+
+def get_db_connection():
+    conn = sqlite3.connect(DB_FILE, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def init_database():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS progress_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT NOT NULL,
+            target_role TEXT NOT NULL,
+            ats REAL DEFAULT 0.0,
+            advanced_ats REAL DEFAULT 0.0,
+            job_fit REAL DEFAULT 0.0,
+            interview REAL DEFAULT 0.0,
+            placement REAL DEFAULT 0.0
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS student_profile (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            name TEXT DEFAULT '',
+            college TEXT DEFAULT '',
+            department TEXT DEFAULT '',
+            year TEXT DEFAULT '3rd Year',
+            cgpa REAL DEFAULT 0.0,
+            target_role TEXT DEFAULT '',
+            location TEXT DEFAULT '',
+            skills TEXT DEFAULT '',
+            projects TEXT DEFAULT ''
+        )
+    """)
+    conn.commit()
+    return conn
+
+def load_progress_history(conn):
+    rows = conn.execute("""
+        SELECT date, target_role, ats, advanced_ats, job_fit, interview, placement
+        FROM progress_history ORDER BY id DESC LIMIT 20
+    """).fetchall()
+    return [dict(row) for row in reversed(rows)]
+
+def save_progress_snapshot(conn, snapshot):
+    conn.execute("""
+        INSERT INTO progress_history
+        (date, target_role, ats, advanced_ats, job_fit, interview, placement)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (
+        snapshot["date"], snapshot["target_role"], snapshot["ats"],
+        snapshot["advanced_ats"], snapshot["job_fit"], snapshot["interview"],
+        snapshot["placement"]
+    ))
+    conn.commit()
+    conn.execute("""
+        DELETE FROM progress_history
+        WHERE id NOT IN (SELECT id FROM progress_history ORDER BY id DESC LIMIT 20)
+    """)
+    conn.commit()
+
+def load_student_profile(conn):
+    row = conn.execute("SELECT * FROM student_profile WHERE id = 1").fetchone()
+    if row:
+        return dict(row)
+    return {
+        "name": "", "college": "", "department": "", "year": "3rd Year",
+        "cgpa": 0.0, "target_role": "", "location": "", "skills": "", "projects": ""
+    }
+
+def save_student_profile(conn, profile):
+    conn.execute("""
+        INSERT INTO student_profile
+        (id, name, college, department, year, cgpa, target_role, location, skills, projects)
+        VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+            name=excluded.name, college=excluded.college, department=excluded.department,
+            year=excluded.year, cgpa=excluded.cgpa, target_role=excluded.target_role,
+            location=excluded.location, skills=excluded.skills, projects=excluded.projects
+    """, (
+        profile.get("name", ""), profile.get("college", ""), profile.get("department", ""),
+        profile.get("year", "3rd Year"), float(profile.get("cgpa", 0.0)),
+        profile.get("target_role", ""), profile.get("location", ""),
+        profile.get("skills", ""), profile.get("projects", "")
+    ))
+    conn.commit()
+
+_db = init_database()
 
 
 # =========================================================
@@ -94,20 +190,16 @@ if "career_roadmap_result" not in st.session_state:
     st.session_state["career_roadmap_result"] = ""
 
 if "progress_history" not in st.session_state:
-    st.session_state["progress_history"] = []
+    st.session_state["progress_history"] = load_progress_history(_db)
 
 if "student_profile" not in st.session_state:
-    st.session_state["student_profile"] = {
-        "name": "",
-        "college": "",
-        "department": "",
-        "year": "3rd Year",
-        "cgpa": 0.0,
-        "target_role": "",
-        "location": "",
-        "skills": "",
-        "projects": ""
-    }
+    st.session_state["student_profile"] = load_student_profile(_db)
+
+if "company_prep_result" not in st.session_state:
+    st.session_state["company_prep_result"] = ""
+
+if "student_profile" not in st.session_state:
+    st.session_state["student_profile"] = load_student_profile(_db)
 
 
 
@@ -269,7 +361,7 @@ st.sidebar.markdown(
     ✅ Skill Gap Analysis  
     ✅ AI Career Role Recommendations
     ✅ Progress & History Dashboard
-    ✅ Student Profile
+    ✅ Company Preparation Hub
     """
 )
 
@@ -279,213 +371,18 @@ page = st.sidebar.radio(
     "Choose Module",
     [
         "🏠 Home",
-        "👤 Student Profile",
         "📄 Resume Analyzer",
         "🎤 Interview Preparation",
-        "🎯 Placement Readiness"
+        "🎯 Placement Readiness",
+        "🏢 Company Preparation Hub"
     ]
 )
 
 
 # =========================================================
-# MODULE 0 - STUDENT PROFILE
+# MODULE 0 - STUDENT DASHBOARD
 # =========================================================
-if page == "👤 Student Profile":
-
-    profile = st.session_state.get(
-        "student_profile",
-        {
-            "name": "",
-            "college": "",
-            "department": "",
-            "year": "3rd Year",
-            "cgpa": 0.0,
-            "target_role": "",
-            "location": "",
-            "skills": "",
-            "projects": ""
-        }
-    )
-
-    st.markdown(
-        """
-        <div class="hero">
-            <h1>👤 Student Profile</h1>
-            <h3>Your Career Identity in One Place</h3>
-            <p>
-                Save your academic details, career goal, skills, and projects
-                so Campus Companion can personalize your placement journey.
-            </p>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-    st.markdown(
-        """
-        <div class="section-card">
-            <h3>📝 Profile Information</h3>
-            <p>
-                Keep this information updated. Your profile is currently
-                stored for this app session and will later be connected to
-                the SQLite database.
-            </p>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        profile_name = st.text_input(
-            "👨‍🎓 Student Name",
-            value=profile.get("name", ""),
-            placeholder="Example: Vijay"
-        )
-
-        profile_college = st.text_input(
-            "🏫 College",
-            value=profile.get("college", ""),
-            placeholder="Example: Chennai Institute of Technology"
-        )
-
-        profile_department = st.text_input(
-            "📚 Department / Branch",
-            value=profile.get("department", ""),
-            placeholder="Example: Artificial Intelligence & Data Science"
-        )
-
-        year_options = ["1st Year", "2nd Year", "3rd Year", "4th Year"]
-        saved_year = profile.get("year", "3rd Year")
-        year_index = (
-            year_options.index(saved_year)
-            if saved_year in year_options
-            else 2
-        )
-
-        profile_year = st.selectbox(
-            "🎓 Year of Study",
-            year_options,
-            index=year_index
-        )
-
-        profile_cgpa = st.number_input(
-            "📈 CGPA",
-            min_value=0.0,
-            max_value=10.0,
-            value=float(profile.get("cgpa", 0.0)),
-            step=0.1
-        )
-
-    with col2:
-        profile_target_role = st.text_input(
-            "💼 Target Job Role",
-            value=profile.get("target_role", ""),
-            placeholder="Example: Data Engineer"
-        )
-
-        profile_location = st.text_input(
-            "📍 Preferred Job Location",
-            value=profile.get("location", ""),
-            placeholder="Example: Chennai"
-        )
-
-        profile_skills = st.text_area(
-            "🧠 Key Skills",
-            value=profile.get("skills", ""),
-            height=120,
-            placeholder="Example: Python, SQL, Java, AWS"
-        )
-
-        profile_projects = st.text_area(
-            "🚀 Projects",
-            value=profile.get("projects", ""),
-            height=150,
-            placeholder="Example: AI Resume Analyzer, Sales Dashboard"
-        )
-
-    if st.button(
-        "💾 Save Student Profile",
-        key="save_student_profile"
-    ):
-        st.session_state["student_profile"] = {
-            "name": profile_name.strip(),
-            "college": profile_college.strip(),
-            "department": profile_department.strip(),
-            "year": profile_year,
-            "cgpa": float(profile_cgpa),
-            "target_role": profile_target_role.strip(),
-            "location": profile_location.strip(),
-            "skills": profile_skills.strip(),
-            "projects": profile_projects.strip()
-        }
-
-        st.success("✅ Student profile saved successfully!")
-        st.rerun()
-
-    saved_profile = st.session_state.get("student_profile", {})
-
-    if saved_profile.get("name") or saved_profile.get("target_role"):
-
-        st.markdown("---")
-        st.subheader("📋 Profile Summary")
-
-        summary_col1, summary_col2, summary_col3 = st.columns(3)
-
-        with summary_col1:
-            st.metric(
-                "Student",
-                saved_profile.get("name") or "Not set"
-            )
-
-        with summary_col2:
-            st.metric(
-                "Year",
-                saved_profile.get("year") or "Not set"
-            )
-
-        with summary_col3:
-            st.metric(
-                "CGPA",
-                f'{saved_profile.get("cgpa", 0.0):.1f}'
-            )
-
-        st.write(
-            "**🏫 College:** "
-            + (saved_profile.get("college") or "Not set")
-        )
-        st.write(
-            "**📚 Department:** "
-            + (saved_profile.get("department") or "Not set")
-        )
-        st.write(
-            "**💼 Target Role:** "
-            + (saved_profile.get("target_role") or "Not set")
-        )
-        st.write(
-            "**📍 Preferred Location:** "
-            + (saved_profile.get("location") or "Not set")
-        )
-        st.write(
-            "**🧠 Key Skills:** "
-            + (saved_profile.get("skills") or "Not set")
-        )
-        st.write(
-            "**🚀 Projects:** "
-            + (saved_profile.get("projects") or "Not set")
-        )
-
-        st.info(
-            "ℹ️ This profile is stored in the current Streamlit session. "
-            "SQLite persistence will be added in the next stage."
-        )
-
-
-# =========================================================
-# MODULE 1 - STUDENT DASHBOARD
-# =========================================================
-elif page == "🏠 Home":
+if page == "🏠 Home":
 
     st.markdown(
         """
@@ -502,31 +399,9 @@ elif page == "🏠 Home":
     )
 
     # -------------------------------------------------
-    # STUDENT PROFILE SNAPSHOT
+    # DATABASE STATUS
     # -------------------------------------------------
-    saved_profile = st.session_state.get("student_profile", {})
-
-    if saved_profile.get("name") or saved_profile.get("target_role"):
-        st.markdown("---")
-        st.subheader("👤 Student Profile Snapshot")
-
-        profile_col1, profile_col2, profile_col3, profile_col4 = st.columns(4)
-
-        with profile_col1:
-            st.write("**Student**")
-            st.write(saved_profile.get("name") or "Not set")
-
-        with profile_col2:
-            st.write("**Year**")
-            st.write(saved_profile.get("year") or "Not set")
-
-        with profile_col3:
-            st.write("**CGPA**")
-            st.write(f'{saved_profile.get("cgpa", 0.0):.1f}')
-
-        with profile_col4:
-            st.write("**Target Role**")
-            st.write(saved_profile.get("target_role") or "Not set")
+    st.success("💾 SQLite persistence is active — progress history is saved locally.")
 
     # -------------------------------------------------
     # CONNECTED SCORES
@@ -2824,6 +2699,8 @@ Make the recommendations realistic for a college student.
                 progress_snapshot
             )
 
+            save_progress_snapshot(_db, progress_snapshot)
+
             # Keep the history manageable in Streamlit session state.
             st.session_state["progress_history"] = (
                 st.session_state["progress_history"][-20:]
@@ -3052,6 +2929,201 @@ Keep it practical, honest, and suitable for a college student.
 
 
 # =========================================================
+# =========================================================
+# MODULE 1 - COMPANY PREPARATION HUB
+# =========================================================
+elif page == "🏢 Company Preparation Hub":
+
+    profile = st.session_state.get("student_profile", {})
+    saved_target_role = profile.get("target_role", "")
+    saved_skills = profile.get("skills", "")
+
+    st.markdown(
+        """
+        <div class="hero">
+            <h1>🏢 Company Preparation Hub</h1>
+            <h3>Prepare Smarter for Your Target Company</h3>
+            <p>
+                Generate a focused company-preparation plan for campus placements
+                using your target role, skills, and selected interview rounds.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    st.markdown(
+        """
+        <div class="section-card">
+            <h3>🎯 Build Your Company Strategy</h3>
+            <p>
+                Enter the company and role you are preparing for. The AI will
+                create a practical preparation strategy based on the information
+                you provide. It does not assume company-specific facts that were
+                not supplied.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    company_col1, company_col2 = st.columns(2)
+
+    with company_col1:
+        company_name = st.text_input(
+            "🏢 Company Name",
+            placeholder="Example: TCS, Infosys, Zoho, Accenture"
+        )
+
+        company_role = st.text_input(
+            "💼 Target Role",
+            value=saved_target_role,
+            placeholder="Example: Data Engineer"
+        )
+
+        company_skills = st.text_area(
+            "🧠 Your Current Skills",
+            value=saved_skills or ", ".join(st.session_state.get("found_skills", [])),
+            height=110,
+            placeholder="Example: Python, SQL, Java, AWS"
+        )
+
+    with company_col2:
+        interview_rounds = st.multiselect(
+            "📝 Preparation Rounds",
+            [
+                "Aptitude / Assessment",
+                "Coding / DSA",
+                "Technical Interview",
+                "Project Discussion",
+                "HR Interview",
+                "Managerial Interview"
+            ],
+            default=[
+                "Coding / DSA",
+                "Technical Interview",
+                "HR Interview"
+            ]
+        )
+
+        preparation_focus = st.multiselect(
+            "🚀 Preparation Focus",
+            [
+                "Resume",
+                "DSA",
+                "SQL",
+                "Python",
+                "Java",
+                "Machine Learning",
+                "Projects",
+                "Communication / HR"
+            ],
+            default=[
+                "DSA",
+                "SQL",
+                "Projects",
+                "Communication / HR"
+            ]
+        )
+
+        preparation_days = st.slider(
+            "📅 Preparation Time Available (days)",
+            min_value=3,
+            max_value=30,
+            value=7
+        )
+
+    if st.button(
+        "🚀 Generate Company Preparation Plan",
+        key="generate_company_prep"
+    ):
+
+        if client is None:
+            st.error(
+                "Groq API key is not configured. Please check Streamlit Secrets."
+            )
+        elif not company_name.strip():
+            st.warning("Please enter the company name first.")
+        elif not company_role.strip():
+            st.warning("Please enter the target job role first.")
+        elif not interview_rounds:
+            st.warning("Please select at least one preparation round.")
+        else:
+            with st.spinner("Creating your personalized company preparation plan..."):
+                company_prompt = f"""
+You are an expert campus placement mentor.
+
+Create a practical preparation plan for a college student preparing for a
+company and role. Use ONLY the information provided below. Do not claim
+company-specific hiring facts, interview questions, technologies, timelines,
+or requirements unless they are explicitly provided by the student.
+
+COMPANY:
+{company_name}
+
+TARGET ROLE:
+{company_role}
+
+STUDENT CURRENT SKILLS:
+{company_skills or "Not provided"}
+
+SELECTED PREPARATION ROUNDS:
+{", ".join(interview_rounds)}
+
+SELECTED PREPARATION FOCUS:
+{", ".join(preparation_focus) if preparation_focus else "Not specified"}
+
+PREPARATION TIME:
+{preparation_days} days
+
+Return exactly these sections:
+
+1. COMPANY PREPARATION STRATEGY
+2. ROUND-BY-ROUND PREPARATION
+3. TECHNICAL TOPICS TO REVISE
+4. CODING / PRACTICE PLAN
+5. PROJECT DISCUSSION PREPARATION
+6. HR / COMMUNICATION PREPARATION
+7. {preparation_days}-DAY STUDY PLAN
+8. FINAL CHECKLIST
+
+Rules:
+- Keep the advice practical for a college student.
+- Clearly separate general placement advice from any information explicitly
+  supplied about the company.
+- Do not invent company policies or guaranteed interview patterns.
+- Prioritize the student's selected preparation rounds and focus areas.
+"""
+
+                try:
+                    response = client.chat.completions.create(
+                        model="openai/gpt-oss-20b",
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": company_prompt
+                            }
+                        ]
+                    )
+
+                    st.session_state["company_prep_result"] = (
+                        response.choices[0].message.content
+                    )
+
+                except Exception as e:
+                    st.error(f"Company preparation generation failed: {e}")
+
+    saved_company_prep = st.session_state.get("company_prep_result", "")
+
+    if saved_company_prep:
+        st.markdown("---")
+        st.subheader("🏆 Your Company Preparation Plan")
+        st.write(saved_company_prep)
+
+
+# =========================================================
+
+
 # FOOTER
 # =========================================================
 st.markdown(
