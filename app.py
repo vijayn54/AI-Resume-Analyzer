@@ -89,6 +89,9 @@ if "multi_interview_type" not in st.session_state:
 if "career_recommendation_result" not in st.session_state:
     st.session_state["career_recommendation_result"] = ""
 
+if "career_roadmap_result" not in st.session_state:
+    st.session_state["career_roadmap_result"] = ""
+
 
 # =========================================================
 # PREMIUM UNIVERSITY UI
@@ -2124,6 +2127,118 @@ Keep the recommendations practical, honest, and suitable for campus placements.
 
         st.subheader("🏆 Recommended Career Roles")
         st.write(saved_career_recommendation)
+
+    # =================================================
+    # 30 / 60 / 90-DAY CAREER ROADMAP
+    # =================================================
+    st.markdown("---")
+
+    st.subheader("🗺️ 30 / 60 / 90-Day Career Roadmap")
+
+    st.write(
+        "Generate a personalized 90-day career roadmap using your "
+        "skills, career recommendations, interview performance, "
+        "job fit, skill gaps, and placement readiness."
+    )
+
+    if st.button(
+        "🚀 Generate 30/60/90-Day Career Roadmap",
+        key="generate_career_roadmap"
+    ):
+
+        if client is None:
+            st.error(
+                "Groq API key is not configured. "
+                "Please check Streamlit Secrets."
+            )
+
+        elif not found_skills:
+            st.warning(
+                "Please analyze your resume first so the AI can build "
+                "a personalized career roadmap."
+            )
+
+        else:
+            with st.spinner(
+                "Creating your personalized 90-day career roadmap..."
+            ):
+
+                roadmap_prompt = f"""
+You are an expert campus placement mentor and career coach.
+
+Create a practical, personalized 30/60/90-day career roadmap for a
+college student preparing for internships and placements.
+
+STUDENT'S CURRENT SKILLS:
+{", ".join(found_skills)}
+
+TARGET ROLE:
+{target_role if target_role.strip() else "Not specified"}
+
+PLACEMENT READINESS SCORE:
+{st.session_state.get("placement_score", 0.0):.1f}/100
+
+INTERVIEW SCORE:
+{st.session_state.get("interview_score", 0.0):.1f}/100
+
+AI JOB FIT SCORE:
+{st.session_state.get("job_fit_score", 0.0):.1f}/100
+
+ADVANCED ATS SCORE:
+{st.session_state.get("advanced_ats_score", 0.0):.1f}/100
+
+CAREER ROLE RECOMMENDATIONS:
+{st.session_state.get("career_recommendation_result", "Not generated yet")}
+
+SKILL GAP REPORT:
+{st.session_state.get("skill_gap_result", "Not generated yet")}
+
+Rules:
+- Use only the information provided above.
+- Do not invent skills, experience, or qualifications.
+- Make the roadmap realistic for a college student.
+- Focus on internships and campus placements.
+- Give actionable weekly goals.
+
+Return exactly these sections:
+
+1. CAREER DIRECTION
+2. DAYS 1-30: FOUNDATION
+3. DAYS 31-60: SKILL DEVELOPMENT
+4. DAYS 61-90: PLACEMENT PREPARATION
+5. WEEKLY PRACTICE ROUTINE
+6. KEY MILESTONES
+7. FINAL ADVICE
+"""
+
+                try:
+                    response = client.chat.completions.create(
+                        model="openai/gpt-oss-20b",
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": roadmap_prompt
+                            }
+                        ]
+                    )
+
+                    st.session_state["career_roadmap_result"] = (
+                        response.choices[0].message.content
+                    )
+
+                except Exception as e:
+                    st.error(
+                        f"Career roadmap generation failed: {e}"
+                    )
+
+    saved_career_roadmap = st.session_state.get(
+        "career_roadmap_result",
+        ""
+    )
+
+    if saved_career_roadmap:
+        st.subheader("📅 Your Personalized 90-Day Roadmap")
+        st.write(saved_career_roadmap)
 
     # =================================================
     # SKILL GAP ANALYZER
