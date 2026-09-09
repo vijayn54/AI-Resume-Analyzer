@@ -4,6 +4,7 @@ from PyPDF2 import PdfReader
 import matplotlib.pyplot as plt
 from groq import Groq
 import re
+from datetime import datetime
 
 
 # =========================================================
@@ -91,6 +92,10 @@ if "career_recommendation_result" not in st.session_state:
 
 if "career_roadmap_result" not in st.session_state:
     st.session_state["career_roadmap_result"] = ""
+
+if "progress_history" not in st.session_state:
+    st.session_state["progress_history"] = []
+
 
 
 # =========================================================
@@ -250,6 +255,7 @@ st.sidebar.markdown(
     ✅ Placement Readiness  
     ✅ Skill Gap Analysis  
     ✅ AI Career Role Recommendations
+    ✅ Progress & History Dashboard
     """
 )
 
@@ -483,6 +489,180 @@ if page == "🏠 Home":
             "🎉 Strong placement readiness. Keep improving your skill gaps "
             "and maintain regular interview practice."
         )
+
+
+    # -------------------------------------------------
+    # PROGRESS & HISTORY DASHBOARD
+    # -------------------------------------------------
+    st.markdown("---")
+    st.subheader("📊 Progress & History Dashboard")
+
+    progress_history = st.session_state.get(
+        "progress_history",
+        []
+    )
+
+    if progress_history:
+
+        latest = progress_history[-1]
+
+        st.write(
+            f"**Latest Assessment:** {latest['date']} • "
+            f"Target Role: {latest['target_role']}"
+        )
+
+        history_col1, history_col2, history_col3, history_col4 = st.columns(4)
+
+        with history_col1:
+            st.metric(
+                "Latest Placement",
+                f"{latest['placement']:.1f}/100"
+            )
+
+        with history_col2:
+            st.metric(
+                "Latest ATS",
+                f"{latest['advanced_ats']:.1f}%"
+            )
+
+        with history_col3:
+            st.metric(
+                "Latest Job Fit",
+                f"{latest['job_fit']:.1f}%"
+            )
+
+        with history_col4:
+            st.metric(
+                "Latest Interview",
+                f"{latest['interview']:.1f}%"
+            )
+
+        # Show improvement from first recorded assessment.
+        if len(progress_history) >= 2:
+
+            first = progress_history[0]
+
+            placement_change = latest["placement"] - first["placement"]
+            interview_change = latest["interview"] - first["interview"]
+
+            st.write(
+                f"**Change since first snapshot:** "
+                f"Placement {placement_change:+.1f} points • "
+                f"Interview {interview_change:+.1f} points"
+            )
+
+        # Progress chart.
+        st.subheader("📈 Score Progress")
+
+        x_labels = [
+            item["date"]
+            for item in progress_history
+        ]
+
+        placement_values = [
+            item["placement"]
+            for item in progress_history
+        ]
+
+        interview_values = [
+            item["interview"]
+            for item in progress_history
+        ]
+
+        ats_values = [
+            item["advanced_ats"]
+            for item in progress_history
+        ]
+
+        job_fit_values = [
+            item["job_fit"]
+            for item in progress_history
+        ]
+
+        fig, ax = plt.subplots(figsize=(10, 5))
+
+        ax.plot(
+            x_labels,
+            placement_values,
+            marker="o",
+            label="Placement"
+        )
+
+        ax.plot(
+            x_labels,
+            interview_values,
+            marker="o",
+            label="Interview"
+        )
+
+        ax.plot(
+            x_labels,
+            ats_values,
+            marker="o",
+            label="Advanced ATS"
+        )
+
+        ax.plot(
+            x_labels,
+            job_fit_values,
+            marker="o",
+            label="AI Job Fit"
+        )
+
+        ax.set_ylim(0, 100)
+        ax.set_ylabel("Score")
+        ax.set_xlabel("Assessment")
+        ax.set_title("Campus Companion Progress Over Time")
+        ax.legend()
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+
+        st.pyplot(
+            fig,
+            use_container_width=True
+        )
+
+        # History table.
+        st.subheader("🗂️ Assessment History")
+
+        history_header = st.columns(6)
+
+        with history_header[0]:
+            st.write("**Date**")
+        with history_header[1]:
+            st.write("**Role**")
+        with history_header[2]:
+            st.write("**ATS**")
+        with history_header[3]:
+            st.write("**Job Fit**")
+        with history_header[4]:
+            st.write("**Interview**")
+        with history_header[5]:
+            st.write("**Placement**")
+
+        for item in reversed(progress_history):
+            row = st.columns(6)
+
+            with row[0]:
+                st.write(item["date"])
+            with row[1]:
+                st.write(item["target_role"])
+            with row[2]:
+                st.write(f"{item['advanced_ats']:.1f}%")
+            with row[3]:
+                st.write(f"{item['job_fit']:.1f}%")
+            with row[4]:
+                st.write(f"{item['interview']:.1f}%")
+            with row[5]:
+                st.write(f"{item['placement']:.1f}")
+
+    else:
+
+        st.info(
+            "Complete your first Placement Readiness assessment to "
+            "start building your progress history."
+        )
+
 
 
 # =========================================================
@@ -2391,6 +2571,26 @@ Make the recommendations realistic for a college student.
             st.session_state[
                 "placement_score"
             ] = placement_score
+
+            # Save a progress snapshot for the History Dashboard.
+            progress_snapshot = {
+                "date": datetime.now().strftime("%d-%m-%Y %H:%M"),
+                "target_role": target_role.strip(),
+                "ats": float(ats_score),
+                "advanced_ats": float(advanced_ats_score),
+                "job_fit": float(job_fit_score),
+                "interview": float(interview_score),
+                "placement": float(placement_score)
+            }
+
+            st.session_state["progress_history"].append(
+                progress_snapshot
+            )
+
+            # Keep the history manageable in Streamlit session state.
+            st.session_state["progress_history"] = (
+                st.session_state["progress_history"][-20:]
+            )
 
             st.markdown("---")
 
